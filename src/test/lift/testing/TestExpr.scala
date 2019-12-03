@@ -8,7 +8,7 @@ import org.junit.{Ignore, Test}
 import scala.util.Random
 
 class OclTestFunction private(name: String, range: Range)
-  extends ArithExprFunction(name, range) {
+  extends ArithExprFunctionCall(name, range) {
 
   lazy val toOCLString = s"$name()"
   override lazy val digest: Int = HashSeed ^ /*range.digest() ^*/ name.hashCode
@@ -22,6 +22,10 @@ class OclTestFunction private(name: String, range: Range)
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(new OclTestFunction(name, range.visitAndRebuild(f)))
+
+  override def exposedArgs: Seq[ArithExpr] = ???
+
+  override def substituteExposedArgs(subMap: Map[ArithExpr, SimplifiedExpr]): ArithExprFunctionCall = ???
 }
 
 object OclTestFunction {
@@ -92,6 +96,137 @@ class TestExpr {
       case 1 => rndExpr(maxDepth, depth+1) + rndExpr(maxDepth, depth+1)
       case 2 => rndExpr(maxDepth, depth+1) /^ rndExpr(maxDepth, depth+1)
     }
+  }
+
+  @Test
+  def binomial_filter_mod1(): Unit = {
+    val w = Var("w", RangeAdd(0, PosInf, 1))
+    val x = Var("x", RangeAdd(0, w, 1))
+    val k = Var("k", RangeAdd(0, PosInf, 1))
+    val expr = (k + x + w) % (k + w)
+    assertEquals(x, expr)
+  }
+
+  @Test
+  def binomial_filter_mod2(): Unit = {
+    val w = Var("a", RangeAdd(0, PosInf, 1))
+    val x = Var("b", RangeAdd(0, w, 1))
+    val expr = (Cst(4) + x + w) % (Cst(2) + w)
+    assertEquals(Cst(2) + x, expr)
+  }
+
+  @Test
+  def binomial_filter_mod3(): Unit = {
+    val w = Var("b", RangeAdd(0, PosInf, 1))
+    val x = Var("a", RangeAdd(0, w, 1))
+    val expr = (Cst(4) + x + w) % (Cst(2) + w)
+    assertEquals(Cst(2) + x, expr)
+  }
+
+  @Test
+  def binomial_filter_mod4(): Unit = {
+    val n = Var("n", RangeAdd(0, PosInf, 1))
+    val expr = (5 + (2 * n)) % (2 + n)
+    assertEquals(Cst(1), expr)
+  }
+
+  @Test
+  def binomial_filter_mod5(): Unit = {
+    val n = Var("n", RangeAdd(0, PosInf, 1))
+    val i = Var("i", RangeAdd(0, n /^ 4, 1))
+    assertEquals(Cst(0),
+      (4 + (n / 2)) % (2 + (n / 4)))
+    assertEquals(Cst(0),
+      (4 + (n /^ 2)) % (2 + (n /^ 4)))
+    assertEquals(Cst(2) + i,
+      (6 + i + (n /^ 2)) % (2 + (n /^ 4)))
+  }
+
+  @Test
+  def binomial_filter_div1(): Unit = {
+    val w = Var("w", RangeAdd(3, PosInf, 1))
+    val i = Var("i", RangeAdd(0, 3, 1))
+    val expr = (Cst(2) + i + w) / (Cst(2) + w)
+    assertEquals(Cst(1), expr)
+  }
+
+  @Test
+  def binomial_filter_div2(): Unit = {
+    val w = Var("w", RangeAdd(3, PosInf, 1))
+    val x = Var("x", RangeAdd(0, w, 1))
+    val expr = (Cst(4) + x + w) / (Cst(2) + w)
+    assertEquals(Cst(1), expr)
+  }
+
+  @Test
+  def binomial_filter_div3(): Unit = {
+    val n = Var("n", RangeAdd(0, PosInf, 1))
+    val expr = (5 + (2 * n)) / (2 + n)
+    assertEquals(Cst(2), expr)
+  }
+
+  @Test
+  def binomial_filter_div4(): Unit = {
+    val n = Var("n", RangeAdd(0, PosInf, 1))
+    val i = Var("i", RangeAdd(0, n /^ 4, 1))
+    assertEquals(Cst(2) + i,
+      i + ((5 + (n / 2)) / (2 + (n / 4))))
+    assertEquals(Cst(2) + i,
+      i + ((5 + (n /^ 2)) / (2 + (n /^ 4))))
+    assertEquals(Cst(2),
+      (6 + i + (n /^ 2)) / (2 + (n /^ 4)))
+  }
+
+  @Test
+  def binomial_filter_ineq1(): Unit = {
+    val h = Var("h", RangeAdd(3, PosInf, 1))
+    val y = Var("y", RangeAdd(0, h, 1))
+    val expr = y lt (1 + h)
+    assertEquals(BoolExpr.True, expr)
+  }
+
+  @Test
+  def binomial_filter_ineq2(): Unit = {
+    val w = Var("w", RangeAdd(3, PosInf, 1))
+    val i = Var("i", RangeAdd(0, 3, 1))
+    val expr = i lt (1 + w)
+    assertEquals(BoolExpr.True, expr)
+  }
+
+  @Test
+  def acoustid3D(): Unit = {
+    val n1 = NamedVar("n1", RangeAdd(0, PosInf, 1))
+    val n2 = NamedVar("n2", RangeAdd(0, PosInf, 1))
+    val g1 = NamedVar("g1", RangeAdd(0, PosInf, 1))
+    val g2 = NamedVar("g2", RangeAdd(0, PosInf, 1))
+
+    assertEquals(g1,
+      ((Cst(2) * g1) + (g1 * n1)) / (Cst(2) + n1))
+    assertEquals(Cst(0),
+      ((Cst(2) * g1) + (g1 * n1)) % (Cst(2) + n1))
+    assertEquals(g1 % (2 + n1),
+      (((g1 % (2 + n1)) + (2 * g2)) + (g2 * n1)) % (2 + n1))
+    assertEquals(g2,
+      (((g1 % (2 + n1)) + (2 * g2)) + (g2 * n1)) / (2 + n1))
+    assertEquals(g1 % (2 + n2),
+      (((2 * g1) + (g1 * n1)) / (2 + n1)) % (2 + n2))
+    assertEquals(2 + g1,
+      ((4+(2*g1)+(2*n1)+(g1*n1))) / (2+n1))
+  }
+
+  @Test
+  def harrisCornerDetection(): Unit = {
+    val h = NamedVar("h", RangeAdd(3, PosInf, 1))
+    val w = NamedVar("w", RangeAdd(4, PosInf, 4))
+    val vx = NamedVar("x", RangeAdd(0, w /^ 4, 1))
+    assertEquals(Cst(3),
+      (Cst(10)*(Cst(1)/^4)) + (Cst(1)/^2))
+    assertEquals(Cst(0),
+      w % 4)
+    assertEquals(2*h*w + 4*vx,
+      ((2 * h) * w) + (4 * ((vx + (w /^ 2)) % (w /^ 4))))
+    assertEquals(Cst(1),
+      (-2 + (3 * h)) % 3)
   }
 
   @Test
@@ -1162,7 +1297,7 @@ class TestExpr {
     // this should not simplify*/
     assertEquals(Max(n,n*2), Max(n,n*2))
   }
-
+/*
   @Test
   def testIfThenElse(): Unit = {
     val a = Var("a")
@@ -1180,7 +1315,7 @@ class TestExpr {
     // Unevaluable predicate with positive offset on the RHS
     assertEquals(b, (b+Cst(-2) gt b ) ?? c !! b)
   }
-
+*/
   @Test
   def testIsSmaller(): Unit = {
     val i = Var("i", ContinuousRange(0, 2))

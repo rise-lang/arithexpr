@@ -5,7 +5,7 @@ package simplifier
 import scala.language.postfixOps
 
 object SimplifyMod {
-
+  // TODO: what are the semantics for negatives?
   def simplify(dividend: ArithExpr with SimplifiedExpr, divisor: ArithExpr with SimplifiedExpr):
   Option[ArithExpr with SimplifiedExpr] =
     (dividend, divisor) match {
@@ -19,6 +19,78 @@ object SimplifyMod {
     ///////////////////////////////////////////////////////////////////////////////////
     // SPECIAL CASES //todo combine cases which only differ in order of args
     ///////////////////////////////////////////////////////////////////////////////////
+
+    // (a + bn) % (c + n)
+    // => (a + bn - b(c + n)) + b(c + n) % (c + n)
+    // => (a + b(n - c + n)) % (c + n)
+    // => (a - cb) % (c + n)
+    case (
+      Sum(Cst(a) :: Prod(Cst(b) :: n1 :: Nil) :: Nil),
+      cpn @ Sum(Cst(c) :: n2 :: Nil)
+      ) if n1 == n2 && (a - c * b) >= 0 =>
+      Some((a - c * b) % cpn)
+
+    // (a + x + n/b) % (c + n/db)
+    // => a + x + d(c + n/db) - dc % (c + n/db)
+    // => a - dc + x % (c + n/db)
+    case (Sum(xs), cpndb) if {
+      val a = xs match {
+        case Cst(a) :: _ => a
+        case _ => 0: Long
+      }
+      (cpndb match {
+        case Sum(Cst(c) :: AnyDiv(n, Cst(db)) :: Nil) => Some(c, n, db)
+        case AnyDiv(n, Cst(db)) => Some(0: Long, n, db)
+        case _ => None
+      }) match {
+        case Some((c, n, db)) =>
+          xs.exists {
+            case AnyDiv(n2, Cst(b)) =>
+              (n == n2) && (db % b == 0) && (a - (db / b)*c >= 0)
+            case _ => false
+          }
+        case _ => false
+      }
+    } =>
+      val a = xs match {
+        case Cst(a) :: _ => a
+        case _ => 0: Long
+      }
+      val (c, n, db) = cpndb match {
+        case Sum(Cst(c) :: AnyDiv(n, Cst(db)) :: Nil) => (c, n, db)
+        case AnyDiv(n, Cst(db)) => (0: Long, n, db)
+      }
+      val ndbs = xs collect { case ndb @ AnyDiv(n2, Cst(b)) if (n == n2) && (db % b == 0) && (a - (db / b)*c >= 0) => ndb }
+      val ndb = ndbs.head
+      val b = ndb match { case AnyDiv(_, Cst(b)) => b }
+      val d = db / b
+      val rest = xs.diff(Seq(ndb)).fold(-d*c: ArithExpr)(_+_)
+      Some(rest % cpndb)
+
+    // x + cn + mn % c+m  =>  x + n(c+m) % c+m  =>  x % c+m
+    case (Sum(xs), cpm @ Sum(Cst(c) :: m :: Nil)
+      ) if {
+      xs.exists {
+        case Prod(Cst(c2) :: n :: Nil) if c == c2 =>
+          xs.exists {
+            case Prod(a :: b :: Nil) => (a == n && b == m) || (a == m && b == n)
+            case _ => false
+          }
+        case _ => false
+      }
+    } =>
+      val ns = xs collect { case Prod(Cst(c2) :: n :: Nil) if c == c2 => n }
+      val nms = xs collect {
+        case nm @ Prod(a :: b :: Nil)
+          if (a == m && ns.contains(b)) || (b == m && ns.contains(a)) => nm
+      }
+      nms.head match {
+        case nm @ Prod(a :: b :: Nil) =>
+          val n = if (b == m) { a } else { b }
+          val x = xs.diff(Seq(Prod(Cst(c) :: n :: Nil), nm))
+            .fold(0: ArithExpr)(_+_)
+          Some(x % cpm)
+      }
 
     // FACTORIZATION
     // e + ca + ma % c+m == a(m+c) + e % c+m => e % c+m
@@ -97,13 +169,6 @@ object SimplifyMod {
       if m1 == m2 && m1 == m3 && j1 == j2 && c1 == c2 && c1 == c3 =>
      Some(i + c-(c1*c2))
 
-    // c1+n+j % c2+n = c1-c2+j % c+n
-    case (Sum(Cst(c1) :: (n1:Var) :: (j:Var) :: Nil),
-          Sum(Cst(c2) :: (n2: Var) :: Nil))
-      if n1 == n2 && c1 >= c2 && c1 >= 0 && c2 >= 0 &&
-        n1.sign == Sign.Positive && j.sign == Sign.Positive =>
-     Some(SimplifyMod(c1-c2+j, c2+n2))
-
     // a + j + bn / n+b = b(n+b) + j + a-2b % n+b
     // 4 + j + 2n % 2+n == 2(n+2)+j % n+2 => j % n+2
     // 5 + j + 2n % 2+n == 2(n+2)+j+1 % n+2 => j+1 % n+2
@@ -128,6 +193,16 @@ object SimplifyMod {
           Sum(Cst(2) :: (n3: Var) :: Nil))
       if n1 == n2 && n1 == n3 && i1 == i2 =>
      Some(SimplifyMod(j+1, n1+2))
+
+    // (m1 + .. + mN + x1 + .. + xN) % (m1 + .. + mN)
+    // => (x1 + .. + xN) % (m1 + .. + mN)
+    case (Sum(mxs), Sum(ms)) if ms.intersect(mxs) == ms =>
+      Some(mxs.diff(ms).fold(0: ArithExpr)(_+_) % Sum(ms))
+    // (a + m1 + .. + mN + x1 + .. + xN) % (b + m1 + .. + mN)
+    // => ((a - b) + x1 + .. + xN) % (b + m1 + .. + mN)
+    case (Sum(Cst(a) :: mxs), Sum(Cst(b) :: ms)) if ms.intersect(mxs) == ms =>
+      val x = mxs.diff(ms).fold[ArithExpr](a - b)(_+_)
+      Some(x % Sum(Cst(b) :: ms))
 
     // Modulo 1
     case (_, Cst(1)) => Some(Cst(0))
@@ -165,7 +240,7 @@ object SimplifyMod {
       Some((s - c + c%d) % d)
 
     // Isolate the terms which are multiple of the mod and eliminate
-    case (s: Sum, d) if !ArithExpr.mightBeNegative(s) =>
+    case (s: Sum, d) => // assumption: !ArithExpr.mightBeNegative(s) =>
       val (multiple, _) = s.terms.partition(t => (t, d) match {
         case (Prod(factors1), Prod(factors2)) => factors2 forall (factors1 contains)
         case (Prod(factors), x) if factors.contains(x) => true
@@ -173,10 +248,17 @@ object SimplifyMod {
         case (x, y) => ArithExpr.gcd(x, y) == y
       })
       val shorterSum = s.withoutTerm(multiple)
-      if (multiple.nonEmpty && !ArithExpr.mightBeNegative(shorterSum)) Some(shorterSum % d)
-      else None
-
-    case (x, y) if ArithExpr.multipleOf(x, y) => Some(Cst(0))
+      if (multiple.isEmpty) return None
+      if (ArithExpr.mightBeNegative(shorterSum)) {
+        (shorterSum, d) match {
+          // TODO: generalize
+          case (Cst(a), Cst(b)) if a < 0 && b > 0 && (a + b) >= 0 =>
+            return Some((a + b) % d)
+          case _ =>
+            return None
+        }
+      }
+      Some(shorterSum % d)
 
     case _ => None
   }

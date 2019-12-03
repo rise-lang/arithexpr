@@ -61,15 +61,73 @@ object SimplifyIntDiv {
       // (AE % div) / div = 0
       case (Mod(ae1: ArithExpr, div1: ArithExpr), (div2: ArithExpr)) if (div1 == div2) => Some(Cst(0))
 
-      // SPECIAL CASES
-      // cn + mn / c+m == n(c+m) / c+m => n
-      case (Sum(
-      Prod(Cst(c1) :: (n2: Var) :: Nil) ::
-        Prod((m1: Var) :: (n1: Var) :: Nil) ::
-        Nil),
-      Sum(Cst(c2) :: (m2: Var) :: Nil))
-        if m1 == m2 && n1 == n2 && c1 == c2 =>
-        Some(n1)
+    // (m1 + .. + mN + x1 + .. + xN) / (m1 + .. + mN)
+    // => 1 + (x1 + .. + xN) / (m1 + .. + mN)
+    case (Sum(mxs), Sum(ms)) if ms.intersect(mxs) == ms =>
+      Some(Cst(1) + (mxs.diff(ms).fold(0: ArithExpr)(_+_) / Sum(ms)))
+    // (a + m1 + .. + mN + x1 + .. + xN) / (b + m1 + .. + mN)
+    // => 1 + ((a - b) + x1 + .. + xN) / (b + m1 + .. + mN)
+    case (Sum(Cst(a) :: mxs), Sum(Cst(b) :: ms))
+      if ms.intersect(mxs) == ms && a >= b =>
+      val x = mxs.diff(ms).fold[ArithExpr](a - b)(_+_)
+      Some(Cst(1) + x / Sum(Cst(b) :: ms))
+
+    // SPECIAL CASES
+
+    // (a + bn) / (c + n)
+    // => (a + bn - b(c + n)) + b(c + n) / (c + n)
+    // => (a + b(n - c + n)) + b(c + n) / (c + n)
+    // => (a - cb) + b(c + n) / (c + n)
+    // => (a - cb) / (c + n) + b
+    case (
+      Sum(Cst(a) :: Prod(Cst(b) :: n1 :: Nil) :: Nil),
+      cpn @ Sum(Cst(c) :: n2 :: Nil)
+      ) if n1 == n2 && (a - c * b) >= 0 =>
+      Some((a - c * b) / cpn + b)
+
+    // x + cn + mn / c+m  =>  x + n(c+m) / c+m  =>  x / c+m + n
+    case (Sum(xs), cpm @ Sum(Cst(c) :: m :: Nil)
+      ) if {
+      xs.exists {
+        case Prod(Cst(c2) :: n :: Nil) if c == c2 =>
+          xs.exists {
+            case Prod(a :: b :: Nil) => (a == n && b == m) || (a == m && b == n)
+            case _ => false
+          }
+        case _ => false
+      }
+    } =>
+      val ns = xs collect { case Prod(Cst(c2) :: n :: Nil) if c == c2 => n }
+      val nms = xs collect {
+        case nm @ Prod(a :: b :: Nil)
+          if (a == m && ns.contains(b)) || (b == m && ns.contains(a)) => nm
+      }
+      nms.head match {
+        case nm @ Prod(a :: b :: Nil) =>
+          val n = if (b == m) { a } else { b }
+          val x = xs.diff(Seq(Prod(Cst(c) :: n :: Nil), nm))
+              .fold(0: ArithExpr)(_+_)
+          Some(x / cpm + n)
+      }
+
+      // (a + x + n/b) / (c + n/db)
+      // => a + x + d(c + n/db) - dc / (c + n/db)
+      // => (a - dc + x / (c + n/db)) + d
+      case (Sum(Cst(a) :: xs),
+      cpndb @ Sum(Cst(c) :: AnyDiv(n, Cst(db)) :: Nil)
+        ) if {
+        xs.exists {
+          case AnyDiv(n2, Cst(b)) =>
+            (n == n2) && (db % b == 0) && (a - (db / b)*c >= 0)
+          case _ => false
+        }
+      } =>
+        val ndbs = xs collect { case ndb @ AnyDiv(n2, Cst(b)) if (n == n2) && (db % b == 0) && (a - (db / b)*c >= 0) => ndb }
+        val ndb = ndbs.head
+        val b = ndb match { case AnyDiv(_, Cst(b)) => b }
+        val d = db / b
+        val rest = xs.diff(Seq(ndb)).fold(a - d*c: ArithExpr)(_+_)
+        Some(rest / cpndb + d)
 
       // i + ca + ma / c+m == a(c+m) + i / c+m => a true if i < c+m
       case (Sum(
@@ -91,7 +149,7 @@ object SimplifyIntDiv {
         Nil),
       Sum(Cst(c2) :: (m2: Var) :: Nil))
         if m1 == m2 && a1 == a2 && c1 == c2 =>
-        Some(SimplifySum(a2, SimplifyIntDiv(SimplifySum((k: ArithExpr) :: (i: ArithExpr) :: Nil),
+        Some(SimplifySum(a2, SimplifyIntDiv(SimplifySum(List(k: ArithExpr, i: ArithExpr)),
           SimplifySum(Cst(c2) :: (m2: Var) :: Nil))))
 
       // j + ck + ci + ni + nk / c+n == ((c+n)(i+k) + j) / c+n => i+k [+ j/c+n] //rather create intdiv instead?
@@ -105,7 +163,7 @@ object SimplifyIntDiv {
       Sum((Cst(c3)) :: (n3: Var) :: Nil))
         if n1 == n2 && n1 == n3 && i1 == i2 && k1 == k2 && c1 == c2 && c1 == c3 &&
           ArithExpr.isSmaller(j, SimplifySum(Cst(c3) :: (n3: Var) :: Nil)).getOrElse(false) =>
-        Some(SimplifySum((i1: Var) :: (k1: Var) :: Nil))
+        Some(SimplifySum(List(i1: Var, k1: Var)))
 
       // b + ca + ma / (cn + mn) == (a(m + c) + b) / n(m + c) => 0 [b/(n(c+m)) + a/n] // a=x%n
       case (Sum(
@@ -153,7 +211,7 @@ object SimplifyIntDiv {
       Cst(c1) :: (n1: Var) :: (j: Var) :: Nil),
       Sum(Cst(c2) :: (n2: Var) :: Nil))
         if n1 == n2 && c1 == c2 &&
-          ArithExpr.isSmaller(j, SimplifySum(c1 :: n2 :: Nil)).getOrElse(false) =>
+          ArithExpr.isSmaller(j, SimplifySum(List(c1, n2))).getOrElse(false) =>
         Some(Cst(1))
 
       // 3+n+j / 2+n = 1 true if 1+j < 2+n
