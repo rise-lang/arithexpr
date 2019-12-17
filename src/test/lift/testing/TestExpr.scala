@@ -99,6 +99,15 @@ class TestExpr {
   }
 
   @Test
+  def elevateMovement(): Unit = {
+    val n = Var("n")
+    assertEquals(
+      (n /^ 16) + (Cst(1) /^ 16),
+      Cst(1) + (Cst(-15) /^ 16) + (n /^ 16)
+    )
+  }
+
+  @Test
   def binomial_filter_mod1(): Unit = {
     val w = Var("w", RangeAdd(0, PosInf, 1))
     val x = Var("x", RangeAdd(0, w, 1))

@@ -1140,11 +1140,19 @@ object IntDiv {
     }
 }
 
+object RealDiv {
+  def unapply(ae: ArithExpr): Option[(ArithExpr with SimplifiedExpr, ArithExpr with SimplifiedExpr)] =
+    ae match {
+      case Prod(n :: Pow(d, Cst(-1)) :: Nil) => Some((n, d))
+      case _ => None
+    }
+}
+
 object AnyDiv {
   def unapply(ae: ArithExpr): Option[(ArithExpr with SimplifiedExpr, ArithExpr with SimplifiedExpr)] =
     ae match {
       case IntDiv(n, d) => Some((n, d))
-      case Prod(n :: Pow(d, Cst(-1)) :: Nil) => Some((n, d))
+      case RealDiv(n, d) => Some((n, d))
       case _ => None
     }
 }
