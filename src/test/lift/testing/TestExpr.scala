@@ -1102,6 +1102,15 @@ class TestExpr {
     assertEquals(Cst(1), Cst(1) /^ Cst(1))
   }
 
+  @Test def orderOfArithExpr(): Unit = {
+    val x = NamedVar("x")
+    val a = NamedVar("a")
+    val b = NamedVar("b")
+    val l1 = List(x * a, x * b).sortWith(ArithExpr.isCanonicallySorted)
+    val l2 = l1.sortWith(ArithExpr.isCanonicallySorted)
+    assertEquals(l1, l2)
+  }
+
   @Test def NByN(): Unit = {
     val N = SizeVar("N")
     assertEquals(Cst(1), N /^ N)
