@@ -1,5 +1,5 @@
 ThisBuild / scalaVersion := "2.11.12"
-ThisBuild / organization := "org.lift-project"
+ThisBuild / organization := "org.rise-lang"
 
 lazy val arithExpr = (project in file("."))
   .settings(
