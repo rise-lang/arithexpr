@@ -1,7 +1,7 @@
 package propertyTesting
 
-import lift.arithmetic._
-import lift.arithmetic.simplifier._
+import rise.arithmetic._
+import rise.arithmetic.simplifier._
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalacheck.Gen._
 import org.scalacheck._
