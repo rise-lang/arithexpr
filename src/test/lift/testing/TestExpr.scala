@@ -1109,6 +1109,14 @@ class TestExpr {
     val l1 = List(x * a, x * b).sortWith(ArithExpr.isCanonicallySorted)
     val l2 = l1.sortWith(ArithExpr.isCanonicallySorted)
     assertEquals(l1, l2)
+
+    val n1 = NamedVar("n1")
+    val n2 = NamedVar("n2")
+    val n3 = NamedVar("n3")
+    val n4 = NamedVar("n4")
+    val l3 = List(n1 * n4, n2 * n3).sortWith(ArithExpr.isCanonicallySorted)
+    val l4 = l3.sortWith(ArithExpr.isCanonicallySorted)
+    assertEquals(l3, l4)
   }
 
   @Test def NByN(): Unit = {

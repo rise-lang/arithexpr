@@ -401,7 +401,11 @@ object ArithExpr {
     case (x: Var, y: Var) => x.id < y.id // order variables based on id
     case (_: Var, _) => true // variables always after constants second
     case (_, _: Var) => false
-    case (Prod(factors1), Prod(factors2)) => factors1.zip(factors2).map(x => isCanonicallySorted(x._1, x._2)).foldLeft(false)(_ || _)
+    case (Prod(factors1), Prod(factors2)) =>
+      factors1.zip(factors2).dropWhile(x => x._1 == x._2).headOption match {
+        case None => false
+        case Some(x) => isCanonicallySorted(x._1, x._2)
+      }
     case _ => x.HashSeed() < y.HashSeed() || (x.HashSeed() == y.HashSeed() && x.digest() < y.digest())
   }
 
