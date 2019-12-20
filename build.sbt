@@ -9,12 +9,6 @@ lazy val arithExpr = (project in file("."))
     scalacOptions ++= Seq("-Xmax-classfile-name", "100", "-unchecked", "-deprecation", "-feature"),
     scalacOptions in (Compile, doc) := Seq("-implicits", "-diagrams"),
 
-    // Source locations (defaults would be: src/main/scala and test/main/java)
-    scalaSource in Compile := baseDirectory(_ / "src/main").value,
-    scalaSource in Test := baseDirectory(_ / "src/test").value,
-    javaSource in Compile := baseDirectory(_ / "src/main").value,
-    javaSource in Test := baseDirectory(_ / "src/test").value,
-
     // dependencies specified in project/Dependencies.scala
     libraryDependencies ++= Seq(
         // scala
