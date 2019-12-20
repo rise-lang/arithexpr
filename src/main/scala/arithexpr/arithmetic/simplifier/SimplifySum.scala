@@ -96,7 +96,7 @@ object SimplifySum {
       case x =>
         val termsAsProds = x match {
           /* First, convert lhs and rhs to a list of factors */
-          // Try to factoarithexpr in hope that the factoarithexprd sum will be simpler
+          // Try to factorise in hope that the factorise sum will be simpler
           case (Prod(fs1), Prod(fs2)) => Some((fs1, fs2))
 
           // Merge products if they only differ by a constant fac?tor
@@ -118,7 +118,7 @@ object SimplifySum {
 
 
   /**
-    * Try to factoarithexpr a sum of products in hope that the sum without common factors can be simplified
+    * Try to factorise a sum of products in hope that the sum without common factors can be simplified
     */
   def simplifiableByFactorisation(term1factors: List[ArithExpr with SimplifiedExpr],
                                   term2factors: List[ArithExpr with SimplifiedExpr]):
@@ -295,7 +295,7 @@ object SimplifySum {
 
   /**
     * Get non-constant and constant common factors from factors of two simplified Prods where the first
-    * product is already factoarithexprd into constant and non-constant factors.
+    * product is already factorise into constant and non-constant factors.
     * This version of getCommonFactors was added for performance, to avoid factorising the first product for
     * the second time.
     *

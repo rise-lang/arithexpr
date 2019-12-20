@@ -13,7 +13,7 @@ object SimplifyProd {
     *
     * First, it tries to merge the new factor with one of the factors from the list.
     * Here, we make sure to indicate whether factor distribution and power merge are allowed because if
-    * either left or right hand-side expressions are temporary representations (factoarithexprd Sums or factoarithexprd Powers),
+    * either left or right hand-side expressions are temporary representations (factorise Sums or factorise Powers),
     * the distribution and power merge would simply undo the conversion and will try to simplify the result
     * resulting in an infinite recursion.
     *

@@ -1339,7 +1339,7 @@ case class Sum private[arithmetic](terms: List[ArithExpr with SimplifiedExpr]) e
 
   override lazy val digest: Int = terms.foldRight(HashSeed)((x, hash) => hash ^ x.digest())
 
-  /* Factoarithexprs a sum smarter and slower than ComputeGCD.factorizeSum. Can deal with division.
+  /* Factorise a sum smarter and slower than ComputeGCD.factorizeSum. Can deal with division.
    * Consider improving computeGCD and using it here.
    *
    * c*a + c*b  :  c * SimplifySum(a, b)
