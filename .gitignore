@@ -1,6 +1,8 @@
 project/*
 target/*
 .idea
+.bloop
+.metals
 
 # Temporaries
 *.swp
