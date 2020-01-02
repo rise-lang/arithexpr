@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion := "2.11.12"
+ThisBuild / scalaVersion := "2.12.10"
 ThisBuild / organization := "org.rise-lang"
 
 lazy val arithExpr = (project in file("."))
@@ -18,9 +18,9 @@ lazy val arithExpr = (project in file("."))
         // testing
         "junit" % "junit" % "4.11",
         "com.novocode" % "junit-interface" % "0.11" % "test",
-        "org.scalacheck" %% "scalacheck" % "1.13.0" % "test",
+        "org.scalacheck" %% "scalacheck" % "1.14.1" % "test",
         // XML
-        "org.scala-lang.modules" % "scala-xml_2.11" % "1.0.4",
+        "org.scala-lang.modules" %% "scala-xml" % "1.2.0"
     ),
 
     testOptions += Tests.Argument(TestFrameworks.JUnit, "-q", "-v"),
