@@ -176,6 +176,8 @@ abstract sealed class ArithExpr {
 
   def visitAndRebuild(f: ArithExpr => ArithExpr): ArithExpr
 
+  def substitute(subs: scala.collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr]
+
   /**
     * Fast Equality operator.
     * The function first compares the seeds, then the digests. If they are equal, the trees are compared using the
@@ -843,13 +845,10 @@ object ArithExpr {
     fv(rootExpr)
   }
 
-  def substitute(e: ArithExpr, substitutions: scala.collection.Map[ArithExpr, ArithExpr]): ArithExpr =
-    e.visitAndRebuild(expr =>
-      if (substitutions.isDefinedAt(expr))
-        substitutions(expr)
-      else
-        expr
-    )
+  def substitute(e: ArithExpr, substitutions: scala.collection.Map[ArithExpr, ArithExpr]): ArithExpr = {
+    val r = e.substitute(substitutions).getOrElse(e)
+    r
+  }
 
   /**
     * Substitutes y * Pow(x, -1) operator with y / x. Added to get around
@@ -1084,6 +1083,8 @@ case object ? extends ArithExpr with SimplifiedExpr {
   override def ==(that: ArithExpr): Boolean = that.getClass == this.getClass
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = f(this)
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = None
 }
 
 case object PosInf extends ArithExpr with SimplifiedExpr {
@@ -1096,6 +1097,8 @@ case object PosInf extends ArithExpr with SimplifiedExpr {
   override def ==(that: ArithExpr): Boolean = that.getClass == this.getClass
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = f(this)
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = None
 }
 
 case object NegInf extends ArithExpr with SimplifiedExpr {
@@ -1108,6 +1111,8 @@ case object NegInf extends ArithExpr with SimplifiedExpr {
   override def ==(that: ArithExpr): Boolean = that.getClass == this.getClass
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = f(this)
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = None
 }
 
 case class Cst private[arithmetic](c: Long) extends ArithExpr with SimplifiedExpr {
@@ -1118,6 +1123,8 @@ case class Cst private[arithmetic](c: Long) extends ArithExpr with SimplifiedExp
   override lazy val toString: String = c.toString
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = f(this)
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = None
 }
 
 case class IntDiv private[arithmetic](numer: ArithExpr with SimplifiedExpr, denom: ArithExpr with SimplifiedExpr)
@@ -1133,6 +1140,16 @@ case class IntDiv private[arithmetic](numer: ArithExpr with SimplifiedExpr, deno
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(numer.visitAndRebuild(f) / denom.visitAndRebuild(f))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
+    val n = numer.substitute(subs)
+    val d = denom.substitute(subs)
+    if (n.isEmpty && d.isEmpty) {
+      None
+    } else {
+      Some(n.getOrElse(numer) / d.getOrElse(denom))
+    }
+  }
 }
 
 object IntDiv {
@@ -1182,6 +1199,16 @@ case class Pow private[arithmetic](b: ArithExpr with SimplifiedExpr, e: ArithExp
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(b.visitAndRebuild(f).pow(e.visitAndRebuild(f)))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
+    val bs = b.substitute(subs)
+    val es = e.substitute(subs)
+    if (bs.isEmpty && es.isEmpty) {
+      None
+    } else {
+      Some(bs.getOrElse(b).pow(es.getOrElse(e)))
+    }
+  }
 }
 
 object Pow {
@@ -1201,6 +1228,16 @@ case class Log private[arithmetic](b: ArithExpr with SimplifiedExpr, x: ArithExp
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(Log(b.visitAndRebuild(f), x.visitAndRebuild(f)))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
+    val bs = b.substitute(subs)
+    val xs = x.substitute(subs)
+    if (bs.isEmpty && xs.isEmpty) {
+      None
+    } else {
+      Some(Log(bs.getOrElse(b), xs.getOrElse(x)))
+    }
+  }
 }
 
 /**
@@ -1255,6 +1292,20 @@ case class Prod private[arithmetic](factors: List[ArithExpr with SimplifiedExpr]
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(factors.map(_.visitAndRebuild(f)).reduce(_ * _))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
+    val (same, fs) = factors
+      .foldLeft((true, Seq[ArithExpr]())) { case ((same, fs), x) =>
+        val xs = x.substitute(subs)
+        (same && xs.isEmpty, fs :+ xs.getOrElse(x))
+      }
+    if (same) {
+      None
+    } else {
+      val r = Some(fs.reduce(_ * _))
+      r
+    }
+  }
 
   // a^n * b^n : (a * b)^n
   lazy val asPowOfProd: Option[Pow] = {
@@ -1416,6 +1467,20 @@ case class Sum private[arithmetic](terms: List[ArithExpr with SimplifiedExpr]) e
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(terms.map(_.visitAndRebuild(f)).reduce(_ + _))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
+    val (same, ts) = terms
+      .foldLeft((true, Seq[ArithExpr]())) { case ((same, ts), x) =>
+        val xs = x.substitute(subs)
+        (same && xs.isEmpty, ts :+ xs.getOrElse(x))
+      }
+    if (same) {
+      None
+    } else {
+      val r = Some(ts.reduce(_ + _))
+      r
+    }
+  }
 }
 
 object Sum {
@@ -1442,6 +1507,16 @@ case class Mod private[arithmetic](dividend: ArithExpr with SimplifiedExpr, divi
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(dividend.visitAndRebuild(f) % divisor.visitAndRebuild(f))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
+    val dds = dividend.substitute(subs)
+    val dss = divisor.substitute(subs)
+    if (dds.isEmpty && dss.isEmpty) {
+      None
+    } else {
+      Some(dds.getOrElse(dividend) % dss.getOrElse(divisor))
+    }
+  }
 }
 
 object Mod {
@@ -1461,6 +1536,9 @@ case class AbsFunction private[arithmetic](ae: ArithExpr with SimplifiedExpr) ex
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(abs(ae.visitAndRebuild(f)))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] =
+    ae.substitute(subs).map(abs(_))
 }
 
 object abs {
@@ -1476,6 +1554,9 @@ case class FloorFunction private[arithmetic](ae: ArithExpr with SimplifiedExpr) 
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(floor(ae.visitAndRebuild(f)))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] =
+    ae.substitute(subs).map(floor(_))
 }
 
 object floor {
@@ -1491,6 +1572,9 @@ case class CeilingFunction private[arithmetic](ae: ArithExpr with SimplifiedExpr
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(ceil(ae.visitAndRebuild(f)))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] =
+    ae.substitute(subs).map(ceil(_))
 }
 
 object ceil {
@@ -1507,6 +1591,18 @@ case class IfThenElse (test: BoolExpr, t: ArithExpr with SimplifiedExpr, e: Arit
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = {
     f(ArithExpr.ifThenElse(test.visitAndRebuild(f:(ArithExpr) => ArithExpr), t.visitAndRebuild(f), e.visitAndRebuild(f)))
+  }
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
+    val is = test.substitute(subs)
+    val ts = t.substitute(subs)
+    val es = e.substitute(subs)
+    if (is.isEmpty && ts.isEmpty && es.isEmpty) {
+      None
+    } else {
+      Some(ArithExpr.ifThenElse(
+        is.getOrElse(test), ts.getOrElse(t), es.getOrElse(t)))
+    }
   }
 }
 
@@ -1553,6 +1649,9 @@ class Lookup private[arithmetic](val table: Seq[ArithExpr with SimplifiedExpr],
     f(Lookup(table.map(_.visitAndRebuild(f)), index.visitAndRebuild(f), id))
   }
 
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] =
+    ???
+
   /**
     * Arguments expressions which are exposed to the arith expr system
     * @return
@@ -1581,6 +1680,16 @@ case class BitwiseXOR private[arithmetic](a: ArithExpr with SimplifiedExpr, b: A
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(a.visitAndRebuild(f) ^ b.visitAndRebuild(f))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
+    val as = a.substitute(subs)
+    val bs = b.substitute(subs)
+    if (as.isEmpty && bs.isEmpty) {
+      None
+    } else {
+      Some(as.getOrElse(a) ^ bs.getOrElse(b))
+    }
+  }
 }
 
 case class BitwiseAND private[arithmetic](a: ArithExpr with SimplifiedExpr, b: ArithExpr with SimplifiedExpr)
@@ -1592,6 +1701,16 @@ case class BitwiseAND private[arithmetic](a: ArithExpr with SimplifiedExpr, b: A
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(a.visitAndRebuild(f) & b.visitAndRebuild(f))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
+    val as = a.substitute(subs)
+    val bs = b.substitute(subs)
+    if (as.isEmpty && bs.isEmpty) {
+      None
+    } else {
+      Some(as.getOrElse(a) & bs.getOrElse(b))
+    }
+  }
 }
 
 case class LShift private[arithmetic](a: ArithExpr with SimplifiedExpr, b: ArithExpr with SimplifiedExpr)
@@ -1603,6 +1722,16 @@ case class LShift private[arithmetic](a: ArithExpr with SimplifiedExpr, b: Arith
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(a.visitAndRebuild(f) << b.visitAndRebuild(f))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
+    val as = a.substitute(subs)
+    val bs = b.substitute(subs)
+    if (as.isEmpty && bs.isEmpty) {
+      None
+    } else {
+      Some(as.getOrElse(a) << bs.getOrElse(b))
+    }
+  }
 }
 
 /**
@@ -1653,6 +1782,10 @@ class Var private[arithmetic](val name: String,
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = {
     f(Var(name, range.visitAndRebuild(f), Some(id)))
+  }
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
+    subs.get(this).orElse(range.substitute(subs).map(Var(name, _, Some(id))))
   }
 
   def copy(r: Range) = new Var(name, r, Some(this.id))
@@ -1761,6 +1894,9 @@ case class BigSum private[arithmetic](variable:InclusiveIndexVar, body:ArithExpr
   override def visitAndRebuild(f: ArithExpr => ArithExpr): ArithExpr =
     BigSum(InclusiveIndexVar(variable.visitAndRebuild(f).asInstanceOf[NamedVar]), body.visitAndRebuild(f))
 
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] =
+    ???
+
   override def toString: String = s"Σ{${variable.name} ∈ [${variable.from},${variable.upTo}] => $body}"
 
   def modify(newFrom:ArithExpr = this.from, newUpTo:ArithExpr = this.upTo, newBody:ArithExpr = this.body):ArithExpr = {
@@ -1831,6 +1967,8 @@ final case class SteppedCase(v:NamedVar, cases:Seq[ArithExpr]) extends ArithExpr
     }
   }
 
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] =
+    ???
 
   def intoIfChain():ArithExpr = {
     //Outermost guard

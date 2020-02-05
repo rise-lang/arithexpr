@@ -14,6 +14,8 @@ sealed trait BoolExpr {
 
   def visitAndRebuild(f:ArithExpr => ArithExpr):BoolExpr
 
+  def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[BoolExpr]
+
   def simplifyInnerArithExpr:BoolExpr
 
   def freeVariables():Set[Var]
@@ -32,6 +34,8 @@ object BoolExpr {
 
     override def visitAndRebuild(f: ArithExpr => ArithExpr) = this
 
+    override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[BoolExpr] = None
+
     override def freeVariables() = Set()
   }
   case object False extends BoolExpr {
@@ -42,6 +46,8 @@ object BoolExpr {
     override def visit(f: ArithExpr => Unit) = ()
 
     override def visitAndRebuild(f: ArithExpr => ArithExpr) = this
+
+    override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[BoolExpr] = None
 
     override def freeVariables() = Set()
 
@@ -57,6 +63,16 @@ object BoolExpr {
     }
 
     override def visitAndRebuild(f: ArithExpr => ArithExpr) = arithPredicate(lhs.visitAndRebuild(f), rhs.visitAndRebuild(f), op)
+
+    override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[BoolExpr] = {
+      val ls = lhs.substitute(subs)
+      val rs = rhs.substitute(subs)
+      if (ls.isEmpty && rs.isEmpty) {
+        None
+      } else {
+        Some(arithPredicate(ls.getOrElse(lhs), rs.getOrElse(rhs), op))
+      }
+    }
 
     override def freeVariables() = ArithExpr.freeVariables(lhs).union(ArithExpr.freeVariables(rhs))
 
