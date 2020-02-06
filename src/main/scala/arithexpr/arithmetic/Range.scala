@@ -18,6 +18,8 @@ sealed abstract class Range {
 
   def visitAndRebuild(f: ArithExpr => ArithExpr): Range
 
+  def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[Range]
+
   /* Number of different values this range can take */
   lazy val numVals: ArithExpr with SimplifiedExpr = ?
 }
@@ -69,6 +71,9 @@ case class StartFromRange(start: ArithExpr with SimplifiedExpr) extends Range {
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): Range =
     StartFromRange(start.visitAndRebuild(f))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[Range] =
+    start.substitute(subs).map(StartFromRange(_))
 }
 
 case class GoesToRange(end: ArithExpr with SimplifiedExpr) extends Range {
@@ -85,6 +90,9 @@ case class GoesToRange(end: ArithExpr with SimplifiedExpr) extends Range {
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): Range =
     GoesToRange(end.visitAndRebuild(f))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[Range] =
+    end.substitute(subs).map(GoesToRange(_))
 }
 
 case class RangeAdd(start: ArithExpr with SimplifiedExpr,
@@ -149,6 +157,17 @@ case class RangeAdd(start: ArithExpr with SimplifiedExpr,
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): Range =
     RangeAdd(start.visitAndRebuild(f), stop.visitAndRebuild(f), step.visitAndRebuild(f))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[Range] = {
+    val bs = start.substitute(subs)
+    val es = stop.substitute(subs)
+    val ss = step.substitute(subs)
+    if (bs.isEmpty && es.isEmpty && ss.isEmpty) {
+      None
+    } else {
+      Some(RangeAdd(bs.getOrElse(start), es.getOrElse(stop), ss.getOrElse(step)))
+    }
+  }
 }
 
 case class RangeMul(start: ArithExpr with SimplifiedExpr,
@@ -167,6 +186,17 @@ case class RangeMul(start: ArithExpr with SimplifiedExpr,
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): Range =
     RangeMul(start.visitAndRebuild(f), stop.visitAndRebuild(f), mul.visitAndRebuild(f))
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[Range] = {
+    val bs = start.substitute(subs)
+    val es = stop.substitute(subs)
+    val ms = mul.substitute(subs)
+    if (bs.isEmpty && es.isEmpty && ms.isEmpty) {
+      None
+    } else {
+      Some(RangeMul(bs.getOrElse(start), es.getOrElse(stop), ms.getOrElse(mul)))
+    }
+  }
 }
 
 object ContinuousRange {
@@ -180,4 +210,6 @@ case object RangeUnknown extends Range {
   override val max: ArithExpr with SimplifiedExpr = ?
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): Range = this
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[Range] = None
 }

@@ -23,6 +23,9 @@ class OclTestFunction private(name: String, range: Range)
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(new OclTestFunction(name, range.visitAndRebuild(f)))
 
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] =
+    subs.get(this).orElse(range.substitute(subs).map(new OclTestFunction(name, _)))
+
   override def exposedArgs: Seq[ArithExpr] = ???
 
   override def substituteExposedArgs(subMap: Map[ArithExpr, SimplifiedExpr]): ArithExprFunctionCall = ???
