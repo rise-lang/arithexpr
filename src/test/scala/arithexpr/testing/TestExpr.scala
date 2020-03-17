@@ -263,6 +263,10 @@ class TestExpr {
       (2 * Cst(1) /^ (n1 /^ 4 + Cst(1) /^ 2)) + (n1 * Cst(1) /^ (n1 /^ 4 + Cst(1) /^ 2)),
       Cst(4)
     )
+    assertEquals(
+      (n1 + (Cst(-1) /^ 2)) + (Cst(10) /^ 4),
+      (n1 + 2)
+    )
   }
 
   @Test

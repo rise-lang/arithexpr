@@ -81,6 +81,8 @@ object SimplifySum {
         Some((1 + x * a) /^ a)
       case (Cst(a), RealDiv(Cst(b), Cst(c))) =>
         Some(Cst(a*c + b) /^ c)
+      case (RealDiv(Cst(a), Cst(b)), RealDiv(Cst(c), Cst(d))) =>
+        Some(Cst(a*d + c*b) /^ (b * d))
 
       // Prune zeroed vars (a Var with a range that can only be 0 should have been simplified!)
       case (x, v: Var) if v.range.min == v.range.max && v.range.min != ? => Some(x + v.range.min)
