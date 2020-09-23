@@ -1164,6 +1164,7 @@ object RealDiv {
   def unapply(ae: ArithExpr): Option[(ArithExpr with SimplifiedExpr, ArithExpr with SimplifiedExpr)] =
     ae match {
       case Prod(n :: Pow(d, Cst(-1)) :: Nil) => Some((n, d))
+      case Pow(d, Cst(-1)) => Some((1, d))
       case _ => None
     }
 }

@@ -26,6 +26,14 @@ object SimplifyPow {
       // (-b)^-1 => -1 * b^-1
     case (Cst(b), Cst(-1)) if b < 0 => Some(SimplifyProd(List(Cst(-1), SimplifyPow(Cst(-b), Cst(-1)))))
 
+    // inverse of division
+    case (RealDiv(a, b), Cst(-1)) =>
+      Some(b /^ a)
+    // special case
+    case (Sum(RealDiv(a, Cst(ad)) :: RealDiv(b, Cst(bd)) :: Nil), Cst(-1)) =>
+      val lcm = scala.math.abs(ad * bd) / ComputeGCD.gcdLong(ad, bd)
+      Some(Cst(lcm) /^ (a * (lcm / ad) + b * (lcm / bd)))
+
     // 0 or 1 to any power
     case (Cst(x), _) if x == 0 || x == 1 => Some(base)
 
