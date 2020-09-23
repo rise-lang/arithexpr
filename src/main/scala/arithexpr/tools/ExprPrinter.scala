@@ -189,7 +189,6 @@ object ExprPrinter {
 
         i match {
           case BoolExpr.ArithPredicate(lhsExp, rhsExp, operator) =>
-
             val lhs_g = new DotGraph(true, "LHS")
             val lhs = dot(lhsExp, lhs_g)
             graph.addNode(lhs_g)
@@ -203,6 +202,31 @@ object ExprPrinter {
             val op = graph.addNode(operator.toString).id
             graph.addEdge(lhs, op)
             graph.addEdge(rhs, op)
+
+            val t_g = new DotGraph(true, "Then")
+            val t_n = dot(t, t_g)
+            graph.addNode(t_g)
+            graph.addEdge(op, t_n)
+
+            val e_g = new DotGraph(true, "Else")
+            val e_n = dot(e, e_g)
+            graph.addNode(e_g)
+            graph.addEdge(op, e_n)
+
+          case BoolExpr.True =>
+            val op = graph.addNode("true").id
+
+            val t_g = new DotGraph(true, "Then")
+            val t_n = dot(t, t_g)
+            graph.addNode(t_g)
+            graph.addEdge(op, t_n)
+
+            val e_g = new DotGraph(true, "Else")
+            val e_n = dot(e, e_g)
+            graph.addNode(e_g)
+            graph.addEdge(op, e_n)
+          case BoolExpr.False =>
+            val op = graph.addNode("false").id
 
             val t_g = new DotGraph(true, "Then")
             val t_n = dot(t, t_g)

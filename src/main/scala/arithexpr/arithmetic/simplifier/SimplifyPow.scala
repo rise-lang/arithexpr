@@ -37,13 +37,13 @@ object SimplifyPow {
     // 0 or 1 to any power
     case (Cst(x), _) if x == 0 || x == 1 => Some(base)
 
-    case (Cst(b), Cst(e)) if e >= 0 => Some(Cst(Math.pow(b, e).toInt))
+    case (Cst(b), Cst(e)) if e >= 0 => Some(Cst(Math.pow(b.toDouble, e.toDouble).toInt))
 
     // Constant positive exponent
-    case (Cst(b), Cst(e)) if e > 1 => Some(Cst(scala.math.pow(b,e).toInt))
+    case (Cst(b), Cst(e)) if e > 1 => Some(Cst(scala.math.pow(b.toDouble, e.toDouble).toInt))
 
     // Constant negative exponents: pow(x,-y) = pow(pow(x,y), -1)  (closed form)
-    case (Cst(b), Cst(e)) if e < -1 => Some(Cst(scala.math.pow(b, -e).toInt) pow Cst(-1))
+    case (Cst(b), Cst(e)) if e < -1 => Some(Cst(scala.math.pow(b.toDouble, -e.toDouble).toInt) pow Cst(-1))
 
      case (Cst(2), e) => e.min match {
        case Cst(c) if c >= 0 => Some( LShift(Cst(1), e) )
