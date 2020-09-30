@@ -64,7 +64,7 @@ class generateCUnits {
   }
 
   @Test
-  def generateRandomTests(){
+  def generateRandomTests(): Unit = {
 
     var sb = new StringBuilder
 

@@ -338,7 +338,7 @@ class TestExpr {
       val sim = re
 
       val simEval = sim.evalDouble
-      assertTrue(oriEval+" != "+simEval, math.abs(oriEval-simEval) <= 1.0/1000000.0)
+      assertTrue(s"$oriEval != $simEval", math.abs(oriEval-simEval) <= 1.0/1000000.0)
     }
   }
 

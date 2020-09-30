@@ -144,7 +144,7 @@ abstract sealed class ArithExpr {
     if (!isEvaluable)
       throw NotEvaluable
     val dblResult = ArithExpr.evalDouble(this)
-    if (dblResult.isWhole())
+    if (dblResult.isWhole)
       dblResult.toLong
     else throw NotEvaluable
   }
@@ -162,14 +162,14 @@ abstract sealed class ArithExpr {
     val vars = varList.filter(_.range.max != ?)
     val exprFunctions = ArithExprFunctionCall.getArithExprFuns(this).filter(_.range.max != ?)
     val maxLens = vars.map(_.range.max) ++ exprFunctions.map(_.range.max)
-    ArithExpr.substitute(this, (vars ++ exprFunctions, maxLens).zipped.toMap)
+    ArithExpr.substitute(this, (vars ++ exprFunctions).lazyZip(maxLens).toMap)
   }
 
   lazy val atMin: ArithExpr = {
     val vars = varList.filter(_.range.min != ?)
     val exprFunctions = ArithExprFunctionCall.getArithExprFuns(this).filter(_.range.min != ?)
     val maxLens = vars.map(_.range.min) ++ exprFunctions.map(_.range.min)
-    ArithExpr.substitute(this, (vars ++ exprFunctions, maxLens).zipped.toMap)
+    ArithExpr.substitute(this, (vars ++ exprFunctions).lazyZip(maxLens).toMap)
   }
 
   lazy val varList: List[Var] = ArithExpr.collectVars(this)
@@ -676,7 +676,7 @@ object ArithExpr {
 
     if (union.nonEmpty) {
       val replacements = union.map(f => Var(f.name, f.range))
-      val replacementsMap = (union, replacements).zipped.toMap[ArithExpr, ArithExpr]
+      val replacementsMap = (union).lazyZip(replacements).toMap[ArithExpr, ArithExpr]
 
       // Disable simplification before rebuilding to save time
       // This is allowed because obscuring vars (replacing them with opaques) does not add new information,
@@ -829,7 +829,7 @@ object ArithExpr {
         case Sum(terms) => terms.map(fv).foldLeft(Set[Var]())(_ ++ _)
         case Prod(terms) => terms.map(fv).foldLeft(Set[Var]())(_ ++ _)
         case IfThenElse(test, thenE, elseE) =>
-          test.freeVariables ++ fv(thenE) ++ fv(elseE)
+          test.freeVariables() ++ fv(thenE) ++ fv(elseE)
         case lu: Lookup => fv(lu.index) ++ lu.table.map(fv).foldLeft(Set[Var]())(_ ++ _)
         case BigSum(binder, body) => fv(body) - binder
         case SteppedCase(v, cases) => cases.map(fv).foldLeft(Set[Var]())(_ ++ _) + v
@@ -868,7 +868,7 @@ object ArithExpr {
     })
 
   private def evalDouble(e: ArithExpr): Double = e match {
-    case Cst(c) => c
+    case Cst(c) => c.toDouble
 
     case IntDiv(n, d) => scala.math.floor(evalDouble(n) / evalDouble(d))
 
@@ -1777,7 +1777,7 @@ class Var private[arithmetic](val name: String,
     if (fixedId.isDefined)
       fixedId.get
     else {
-      Var.incCnt
+      Var.incCnt()
     }
   }
 
@@ -1911,7 +1911,7 @@ case class BigSum private[arithmetic](variable:InclusiveIndexVar, body:ArithExpr
 case class InclusiveIndexVar(override val name:String, from:ArithExpr, upTo:ArithExpr, override val fixedId: Option[Long] = None) extends NamedVar(name, RangeAdd(from, upTo + 1, 1), fixedId) {
   val rangeAdd:RangeAdd = this.range.asInstanceOf[RangeAdd]
 
-  override def cloneSimplified: InclusiveIndexVar with SimplifiedExpr = new InclusiveIndexVar(name, from, upTo) with SimplifiedExpr
+  override def cloneSimplified(): InclusiveIndexVar with SimplifiedExpr = new InclusiveIndexVar(name, from, upTo) with SimplifiedExpr
 }
 
 object InclusiveIndexVar {
@@ -1953,7 +1953,7 @@ object BigSum {
 final case class SteppedCase(v:NamedVar, cases:Seq[ArithExpr]) extends ArithExpr with SimplifiedExpr {
   override def HashSeed(): Int = 18022019
 
-  override def digest(): Int = cases.foldRight(HashSeed)((x, hash) => hash ^ x.digest())
+  override def digest(): Int = cases.foldRight(HashSeed())((x, hash) => hash ^ x.digest())
 
 
   override def visitAndRebuild(f: ArithExpr => ArithExpr): ArithExpr = {

@@ -146,11 +146,11 @@ object SimplifyProd {
 
       // Compute powers when all bases and exponents are positive constants
       case (Pow(Cst(b1), Cst(e1)), Pow(Cst(b2), Cst(e2))) if e1 > 0 && e2 > 0 =>
-        Some(Cst((Math.pow(b1, e1) * Math.pow(b2, e2)).toInt))
+        Some(Cst((Math.pow(b1.toDouble, e1.toDouble) * Math.pow(b2.toDouble, e2.toDouble)).toInt))
 
       // Compute powers when all bases and exponents are negative constants
       case (Pow(Cst(b1), Cst(e1)), Pow(Cst(b2), Cst(e2))) if e1 < 0 && e2 < 0 =>
-        Some(SimplifyPow(Cst((Math.pow(b1, -e1) * Math.pow(b2, -e2)).toInt), -1))
+        Some(SimplifyPow(Cst((Math.pow(b1.toDouble, -e1.toDouble) * Math.pow(b2.toDouble, -e2.toDouble)).toInt), -1))
 
       case (Cst(x), Pow(Cst(y), Cst(e2))) if e2 < 0 && x % y == 0 =>
         Some(Cst(x / y) * SimplifyPow(Cst(y), Cst(e2 + 1)))
