@@ -1583,7 +1583,7 @@ object ceil {
 }
 
 /* Conditional operator. Behaves like the `?:` operator in C. */
-case class IfThenElse (test: BoolExpr, t: ArithExpr with SimplifiedExpr, e: ArithExpr with SimplifiedExpr) extends ArithExpr {
+case class IfThenElse (test: BoolExpr, t: ArithExpr with SimplifiedExpr, e: ArithExpr with SimplifiedExpr) extends ArithExpr with SimplifiedExpr {
   override val HashSeed = 0x32c3d095
 
   override lazy val digest: Int = HashSeed ^ test.digest ^ t.digest() ^ ~e.digest()
@@ -1602,7 +1602,7 @@ case class IfThenElse (test: BoolExpr, t: ArithExpr with SimplifiedExpr, e: Arit
       None
     } else {
       Some(ArithExpr.ifThenElse(
-        is.getOrElse(test), ts.getOrElse(t), es.getOrElse(t)))
+        is.getOrElse(test), ts.getOrElse(t), es.getOrElse(e)))
     }
   }
 }
@@ -1836,6 +1836,10 @@ class NamedVar (override val name: String, override val range: Range = RangeUnkn
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = {
     f(NamedVar(name, range.visitAndRebuild(f)))
+  }
+
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
+    subs.get(this).orElse(range.substitute(subs).map(NamedVar(name, _)))
   }
 
   override def cloneSimplified() = new NamedVar(name, range) with SimplifiedExpr
