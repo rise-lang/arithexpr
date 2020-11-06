@@ -1896,11 +1896,23 @@ case class BigSum private[arithmetic](variable:InclusiveIndexVar, body:ArithExpr
 
   override def digest(): Int = this.HashSeed() ^ variable.digest ^ body.digest()
 
-  override def visitAndRebuild(f: ArithExpr => ArithExpr): ArithExpr =
-    BigSum(InclusiveIndexVar(variable.visitAndRebuild(f).asInstanceOf[NamedVar]), body.visitAndRebuild(f))
+  override def visitAndRebuild(f: ArithExpr => ArithExpr): ArithExpr = {
+    val v2 = InclusiveIndexVar(variable.visitAndRebuild(f).asInstanceOf[NamedVar])
+    val b2 = body.visitAndRebuild(f)
+    BigSum(v2, b2)
+  }
 
-  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] =
-    ???
+  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
+    val sv = variable.substitute(subs)
+    val sb = body.substitute(subs)
+    if (sv.isEmpty && sb.isEmpty) {
+      None
+    } else {
+      Some(BigSum(
+        sv.map(v => InclusiveIndexVar(v.asInstanceOf[NamedVar])).getOrElse(variable),
+        sb.getOrElse(body)))
+    }
+  }
 
   override def toString: String = s"Σ{${variable.name} ∈ [${variable.from},${variable.upTo}] => $body}"
 
