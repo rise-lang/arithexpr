@@ -1899,7 +1899,7 @@ case class BigSum private[arithmetic](variable:InclusiveIndexVar, body:ArithExpr
   override def visitAndRebuild(f: ArithExpr => ArithExpr): ArithExpr = {
     val v2 = InclusiveIndexVar(variable.visitAndRebuild(f).asInstanceOf[NamedVar])
     val b2 = body.visitAndRebuild(f)
-    BigSum(v2, b2)
+    SimplifyBigSum(BigSum(v2, b2))
   }
 
   override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
@@ -1908,9 +1908,9 @@ case class BigSum private[arithmetic](variable:InclusiveIndexVar, body:ArithExpr
     if (sv.isEmpty && sb.isEmpty) {
       None
     } else {
-      Some(BigSum(
+      Some(SimplifyBigSum(BigSum(
         sv.map(v => InclusiveIndexVar(v.asInstanceOf[NamedVar])).getOrElse(variable),
-        sb.getOrElse(body)))
+        sb.getOrElse(body))))
     }
   }
 
