@@ -1,5 +1,6 @@
 package arithexpr.arithmetic.simplifier
 
+import arithexpr.arithmetic.BoolExpr.ArithPredicate
 import arithexpr.arithmetic._
 import arithexpr.util.{ListMatch, Matching}
 
@@ -36,6 +37,17 @@ object SimplifyBigSum {
         }
 
         terms.reduceOption(_ + _).getOrElse(Cst(0))
+
+      // Split the sum on branching
+      case IfThenElse(ArithPredicate(v: NamedVar, upper, ArithPredicate.Operator.<), t, e)
+        if v.name == bigSum.variable.name // TODO: why is direct '==' not working?
+      =>
+        val v1 = InclusiveIndexVar(v.name, v.range.min, upper - 1)
+        val v2 = InclusiveIndexVar(v.name, upper, v.range.max - 1)
+        val s1 = SimplifyBigSum(BigSum(v1, ArithExpr.substitute(t, Map(v -> v1))))
+        val s2 = SimplifyBigSum(BigSum(v2, ArithExpr.substitute(e, Map(v -> v2))))
+        s1 + s2
+
       case _ => done(bigSum)
     }
   }

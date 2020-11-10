@@ -26,4 +26,11 @@ class TestBigSumSimplification {
 
   @Test
   def takeOutFactorAndThenEuler =assertEquals(BigSum(from = 0, upTo = 10 - 1, x => 2 * x), Cst(90))
+
+  @Test
+  def splitIfSum = {
+    val s = BigSum(from = 0, upTo = 10, i =>
+      IfThenElse(ArithPredicate(i, 5, ArithPredicate.Operator.<), i, 2*i))
+    assertEquals(s, Cst(100))
+  }
 }
