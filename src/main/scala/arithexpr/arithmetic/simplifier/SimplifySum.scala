@@ -25,11 +25,12 @@ object SimplifySum {
   def addTerm(terms: List[ArithExpr with SimplifiedExpr], term: ArithExpr with SimplifiedExpr,
               termsComeFromSum: Boolean = false):
   Either[ArithExpr with SimplifiedExpr, ArithExpr with SimplifiedExpr] = {
-    terms.zipWithIndex.foreach {
-      case (x, i) =>
-        val newterm = combineTerms(term, x)
-        if (newterm.isDefined) return Right(replaceAt(i, newterm.get, terms).reduce(_ + _))
-      }
+    var i = 0
+    terms.foreach { x =>
+      val newterm = combineTerms(term, x)
+      if (newterm.isDefined) return Right(replaceAt(i, newterm.get, terms).reduce(_ + _))
+      i += 1
+    }
 
     // We didn't manage to combine the new term with any of the old terms.
     val simplifiedOriginalSum: ArithExpr with SimplifiedExpr =

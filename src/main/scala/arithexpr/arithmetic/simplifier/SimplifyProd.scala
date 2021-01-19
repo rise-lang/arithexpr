@@ -37,16 +37,16 @@ object SimplifyProd {
                 factorsComeFromProd: Boolean = false,
                 someFactorsComeFromSum: Boolean = true,
                 someFactorsComeFromPow: Boolean = true): ArithExpr with SimplifiedExpr = {
+    var i = 0
+    factors.foreach { x =>
+      val newfac = combineFactors(factor, x,
+        distributionAllowed = !someFactorsComeFromSum,
+        powerMergeAllowed = !someFactorsComeFromPow)
 
-    factors.zipWithIndex.foreach{
-      case (x, i) => {
-        val newfac = combineFactors(factor, x,
-          distributionAllowed = !someFactorsComeFromSum,
-          powerMergeAllowed = !someFactorsComeFromPow)
+      if (newfac.isDefined)
+        return replaceAt(i, newfac.get, factors).reduce(_ * _)
 
-        if (newfac.isDefined)
-          return replaceAt(i, newfac.get, factors).reduce(_ * _)
-      }
+      i += 1
     }
 
     // We didn't manage to combine the new factor with any of the old factors.
