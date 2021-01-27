@@ -117,7 +117,7 @@ case class RangeAdd(start: ArithExpr with SimplifiedExpr,
       case NotEvaluableException() => result
     }
   }
-  
+
   override val min: ArithExpr with SimplifiedExpr = {
     if (step.sign == Sign.Negative)
       checkBound(up=false, stop + 1)
@@ -128,8 +128,10 @@ case class RangeAdd(start: ArithExpr with SimplifiedExpr,
     if (step.sign == Sign.Positive)
       // TODO: this maximum is too high! consider the following range: RangeAdd(0,10,5) in which case the max is 5, not 9
       checkBound(up=true, stop - 1)
-    else
+    else if (step.sign == Sign.Negative)
       start
+    else
+      stop
   }
 
   override def equals(that: Any): Boolean = that match {
