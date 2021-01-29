@@ -37,6 +37,7 @@ object SimplifyProd {
                 factorsComeFromProd: Boolean = false,
                 someFactorsComeFromSum: Boolean = true,
                 someFactorsComeFromPow: Boolean = true): ArithExpr with SimplifiedExpr = {
+    // Avoids using `zipWithIndex` with creates boxed integers, hurting performance
     var i = 0
     factors.foreach { x =>
       val newfac = combineFactors(factor, x,

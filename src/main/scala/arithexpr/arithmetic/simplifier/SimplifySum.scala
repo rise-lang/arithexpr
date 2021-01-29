@@ -25,6 +25,7 @@ object SimplifySum {
   def addTerm(terms: List[ArithExpr with SimplifiedExpr], term: ArithExpr with SimplifiedExpr,
               termsComeFromSum: Boolean = false):
   Either[ArithExpr with SimplifiedExpr, ArithExpr with SimplifiedExpr] = {
+    // Avoids using `zipWithIndex` with creates boxed integers, hurting performance
     var i = 0
     terms.foreach { x =>
       val newterm = combineTerms(term, x)
