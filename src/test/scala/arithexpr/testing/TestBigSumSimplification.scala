@@ -1,6 +1,6 @@
 package arithexpr.testing
 
-import arithexpr.arithmetic.BoolExpr.ArithPredicate
+import arithexpr.arithmetic.BoolExpr._
 import arithexpr.arithmetic._
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -30,7 +30,7 @@ class TestBigSumSimplification {
   @Test
   def splitIfSum = {
     val s = BigSum(from = 0, upTo = 10, i =>
-      IfThenElse(ArithPredicate(i, 5, ArithPredicate.Operator.<), i, 2*i))
+      IfThenElse(arithPredicate(i, 5, ArithPredicate.Operator.<), i, 2*i))
     assertEquals(s, Cst(100))
   }
 }

@@ -1,6 +1,6 @@
 package arithexpr.arithmetic
 
-import arithexpr.arithmetic.BoolExpr.ArithPredicate.Operator.Operator
+import arithexpr.arithmetic.BoolExpr.ArithPredicate.Operator
 import arithexpr.arithmetic.simplifier.ExprSimplifier
 
 case class IfThenElseBuilder(test:BoolExpr, thenExpr:ArithExpr) {
@@ -52,7 +52,7 @@ object BoolExpr {
     override def freeVariables() = Set()
 
   }
-  case class ArithPredicate private(lhs:ArithExpr, rhs:ArithExpr, op:Operator) extends BoolExpr {
+  case class ArithPredicate private[arithexpr](lhs:ArithExpr, rhs:ArithExpr, op:Operator) extends BoolExpr {
     val digest: Int = 0x7c6736c0 ^ lhs.digest() ^ rhs.digest() ^ op.hashCode()
 
     override def toString: String = s"($lhs) $op ($rhs)"
@@ -80,12 +80,12 @@ object BoolExpr {
     def evaluate:Option[Boolean] = {
       import ArithPredicate.Operator
       this.op match {
-        case Operator.== => if(this.lhs == this.rhs) Some(true) else None
-        case Operator.!= => ArithPredicate(lhs, rhs, Operator.==).evaluate.map(x => !x)
+        case Operator.equal => if(this.lhs == this.rhs) Some(true) else None
+        case Operator.notEqual => ArithPredicate(lhs, rhs, Operator.equal).evaluate.map(x => !x)
         case Operator.< => ArithExpr.isSmaller(lhs, rhs)
         case Operator.> => ArithExpr.isSmaller(rhs, lhs)
 
-        case Operator.<= => ArithPredicate(lhs, rhs, Operator.==).evaluate match {
+        case Operator.<= => ArithPredicate(lhs, rhs, Operator.equal).evaluate match {
           case None | Some(false) => ArithPredicate(lhs, rhs, Operator.<).evaluate
           case x => x
         }
@@ -94,38 +94,28 @@ object BoolExpr {
       }
     }
   }
-
+  
   object ArithPredicate {
-    object Operator extends Enumeration {
-      type Operator = Value
-      val < = Value("<")
-      val > = Value(">")
-      val <= = Value("<=")
-      val >= = Value(">=")
-      val != = Value("!=")
-      val == = Value("==")
-
-      def symbolString(op:Operator): String =  op match {
-        case Operator.< => "<"
-        case Operator.> => ">"
-        case Operator.== => "=="
-        case Operator.!= => "!="
-        case Operator.>= => ">="
-        case Operator.<= => "<="
-      }
-    }
+    enum Operator:
+      case <, >, <=, >=, equal, notEqual
   }
 
-  def arithPredicate(lhs:ArithExpr, rhs:ArithExpr, op:Operator):BoolExpr = {
+  def arithPredicate(lhs: ArithExpr, rhs: ArithExpr, op: Operator): BoolExpr = {
 
     op match {
       case ArithPredicate.Operator.< =>
         //If the left side is always strictly less the minimum right side, then the branch is always taken
         val diff = lhs - rhs
-        if (diff.sign == Sign.Negative) { return True }
-        if (ArithExpr.isSmaller(lhs, rhs).contains(true)) { return True }
+        if (diff.sign == Sign.Negative) {
+          return True
+        }
+        if (ArithExpr.isSmaller(lhs, rhs).contains(true)) {
+          return True
+        }
         //If the left is always greater or equal to the right side, then the branch is never taken
-        if (diff.sign == Sign.Positive) { return False }
+        if (diff.sign == Sign.Positive) {
+          return False
+        }
       case _ =>
     }
     ArithPredicate(lhs, rhs, op)

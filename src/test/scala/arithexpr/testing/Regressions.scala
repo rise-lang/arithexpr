@@ -70,7 +70,7 @@ class Regressions {
   }
 
   class func1(a: Int) extends ArithExprFunctionCall("func1") {
-    override lazy val digest: Int =  0x3105f133 ^ range.digest() ^ name.hashCode ^ a.hashCode()
+    override def digest(): Int =  0x3105f133 ^ range.digest() ^ name.hashCode ^ a.hashCode()
 
     override lazy val toString: String = s"$name($a)"
 
@@ -90,7 +90,7 @@ class Regressions {
   }
 
   class func2(a: Int) extends ArithExprFunctionCall("func2") {
-    override lazy val digest: Int =  0x3105f133 ^ range.digest() ^ name.hashCode ^ a.hashCode()
+    override def digest(): Int =  0x3105f133 ^ range.digest() ^ name.hashCode ^ a.hashCode()
 
     override lazy val toString: String = s"$name($a)"
 

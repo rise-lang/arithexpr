@@ -11,8 +11,8 @@ class OclTestFunction private(name: String, range: Range)
   extends ArithExprFunctionCall(name, range) {
 
   lazy val toOCLString = s"$name()"
-  override lazy val digest: Int = HashSeed ^ /*range.digest() ^*/ name.hashCode
-  override val HashSeed = 0x31111111
+  override def digest(): Int = HashSeed() ^ /*range.digest() ^*/ name.hashCode
+  override def HashSeed(): Int = 0x31111111
   override def equals(that: Any) = that match {
     case f: OclTestFunction => this.name.equals(f.name)
     case _ => false
@@ -283,7 +283,7 @@ class TestExpr {
   def issue141_2(): Unit = {
     val i = Var("i")
     val expr = (3 + (-2 * i)) % 3
-    val gold = SimplifyMod(SimplifySum(3 :: SimplifyProd(-2 :: i :: Nil) :: Nil), 3)
+    val gold = SimplifyMod(SimplifySum(3 :: SimplifyProd(Cst(-2) :: i :: Nil) :: Nil), 3)
     val incorrectSimplication = (-2 * i) % 3
     // wrong for example when i == 1
     // expr: 1
@@ -296,7 +296,7 @@ class TestExpr {
   def issue141_3(): Unit = {
     val i = Var("i")
     val expr = (3 - i) % 3
-    val gold = SimplifyMod(SimplifySum(3 :: SimplifyProd(-1 :: i :: Nil) :: Nil), 3)
+    val gold = SimplifyMod(SimplifySum(3 :: SimplifyProd(Cst(-1) :: i :: Nil) :: Nil), 3)
     val incorrectSimplication = (-1 * i) % 3
     assertNotEquals(incorrectSimplication, expr)
     assertEquals(gold, expr)

@@ -235,13 +235,13 @@ object SimplifySum {
           case squaredSumTerm :: remainingTerms =>
             var updatedSigns: Map[ArithExpr, Sign.Sign] = inferredSigns
 
-          // Infer new signs based on previously inferred signs and product term signs
-          productTermSigns(squaredSumTerm).foreach {
-            case (secondFactor: ArithExpr, productTermSign: Sign.Sign) =>
-              val inferredSecondFactorSign =
-                if (inferredSigns(squaredSumTerm) == productTermSign) Sign.Positive
-                else Sign.Negative
-
+            // Infer new signs based on previously inferred signs and product term signs
+            productTermSigns(squaredSumTerm).foreach {
+              case (secondFactor: ArithExpr, productTermSign: Sign.Sign) =>
+                val inferredSecondFactorSign: Sign.Sign =
+                  if (inferredSigns(squaredSumTerm) == productTermSign) Sign.Positive
+                  else Sign.Negative
+  
                 updatedSigns =
                   if (updatedSigns.contains(secondFactor)) {
                     if (updatedSigns(secondFactor) != inferredSecondFactorSign)
@@ -250,10 +250,10 @@ object SimplifySum {
                       return None
                     else updatedSigns // We've already inferred the sign for the second factor and it's the same
                   } else (updatedSigns + (secondFactor -> inferredSecondFactorSign))
-            }
-
-          // Infer signs of the remaining squared sum terms
-          inferSigns(remainingTerms, updatedSigns)
+              }
+  
+            // Infer signs of the remaining squared sum terms
+            inferSigns(remainingTerms, updatedSigns)
         }
       }
 

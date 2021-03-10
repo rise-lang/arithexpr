@@ -13,7 +13,7 @@ object SimplifyCeiling {
         try {
           val d = CeilingFunction(ae).evalDouble
           assert(d.isValidInt)
-         Cst(d.toInt)
+          Cst(d.toInt)
         } catch {
           case NotEvaluableException() =>
             // ok let's try to evaluate ceiling of min and max

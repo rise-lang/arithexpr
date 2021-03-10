@@ -1,29 +1,29 @@
 package arithexpr.testing
 
-import arithexpr.arithmetic.BoolExpr.ArithPredicate
+import arithexpr.arithmetic.BoolExpr._
 import arithexpr.arithmetic._
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class TestBoolExpr {
   import ArithPredicate.{Operator => Op}
-  import ArithPredicate.Operator.Operator
+  import ArithPredicate.Operator
 
-  def assertPredicate(lhs: ArithExpr, op: Operator, rhs: ArithExpr, result: Option[Boolean]): Unit = {
+  def assertPredicate(lhs: ArithExpr, op: ArithPredicate.Operator, rhs: ArithExpr, result: Option[Boolean]): Unit = {
     assertEquals(result, ArithPredicate(lhs, rhs, op).evaluate)
   }
 
   @Test
-  def equalsDecided = assertPredicate(1, Op.==, 1, Some(true))
+  def equalsDecided = assertPredicate(1, Op.equal, 1, Some(true))
 
   @Test
-  def equalsUndecided = assertPredicate(1, Op.==, 2, None)
+  def equalsUndecided = assertPredicate(1, Op.equal, 2, None)
 
   @Test
-  def nonEqualsDecided = assertPredicate(1, Op.!=, 1, Some(false))
+  def nonEqualsDecided = assertPredicate(1, Op.notEqual, 1, Some(false))
 
   @Test
-  def nonEqualsUndecided = assertPredicate(1, Op.!=, 2, None)
+  def nonEqualsUndecided = assertPredicate(1, Op.notEqual, 2, None)
   
   @Test
   def isLT = assertPredicate(1, Op.<, 2, Some(true))

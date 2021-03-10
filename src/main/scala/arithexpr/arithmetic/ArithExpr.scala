@@ -355,7 +355,7 @@ abstract sealed class ArithExpr {
     * @param that Right-hand side of the comparison
     * @return A Predicate object
     */
-  def eq(that: ArithExpr) = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.==)
+  def eq(that: ArithExpr) = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.equal)
 
   /**
     * Inequality comparison operator.
@@ -364,7 +364,7 @@ abstract sealed class ArithExpr {
     * @param that Right-hand side of the comparison
     * @return A Predicate object
     */
-  def ne(that: ArithExpr) = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.!=)
+  def ne(that: ArithExpr) = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.notEqual)
 
   /**
     * The hash function creates a 32 bit digest of the expression. Each node type has a unique salt and combines
@@ -1020,7 +1020,7 @@ object ArithExpr {
     case BoolExpr.ArithPredicate(lhs, rhs, op) =>
       s"ArithPredicate(${printToScalaString(lhs,printNonFixedVarIDs)}, " +
         s"${printToScalaString(rhs, printNonFixedVarIDs)}, " +
-        s"ArithExpr.Operator.${ArithPredicate.Operator.symbolString(op)})"
+        s"ArithExpr.Operator.$op)"
   }
 
 
@@ -1074,9 +1074,9 @@ trait SimplifiedExpr extends ArithExpr {
 
 /* ? represents an unknown value. */
 case object ? extends ArithExpr with SimplifiedExpr {
-  override val HashSeed = 0x3fac31
+  override def HashSeed(): Int = 0x3fac31
 
-  override val digest: Int = HashSeed
+  override def digest(): Int = HashSeed()
 
   override lazy val sign = Sign.Unknown
 
@@ -1088,9 +1088,9 @@ case object ? extends ArithExpr with SimplifiedExpr {
 }
 
 case object PosInf extends ArithExpr with SimplifiedExpr {
-  override val HashSeed = 0x4a3e87
+  override def HashSeed(): Int = 0x4a3e87
 
-  override val digest: Int = HashSeed
+  override def digest(): Int = HashSeed()
 
   override lazy val sign = Sign.Positive
 
@@ -1102,9 +1102,9 @@ case object PosInf extends ArithExpr with SimplifiedExpr {
 }
 
 case object NegInf extends ArithExpr with SimplifiedExpr {
-  override val HashSeed = 0x4a3e87
+  override def HashSeed(): Int = 0x4a3e87
 
-  override val digest: Int = HashSeed
+  override def digest(): Int = HashSeed()
 
   override lazy val sign = Sign.Negative
 
@@ -1115,28 +1115,28 @@ case object NegInf extends ArithExpr with SimplifiedExpr {
   override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = None
 }
 
-case class Cst private[arithmetic](c: Long) extends ArithExpr with SimplifiedExpr {
-  override val HashSeed: Int = java.lang.Long.hashCode(c)
+case class Cst(c: Long) extends ArithExpr with SimplifiedExpr {
+  override def HashSeed(): Int = java.lang.Long.hashCode(c)
 
-  override lazy val digest: Int = java.lang.Long.hashCode(c)
+  override def digest(): Int = java.lang.Long.hashCode(c)
 
-  override lazy val toString: String = c.toString
+  override def toString(): String = c.toString
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = f(this)
 
   override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = None
 }
 
-case class IntDiv private[arithmetic](numer: ArithExpr with SimplifiedExpr, denom: ArithExpr with SimplifiedExpr)
+case class IntDiv private[arithexpr](numer: ArithExpr with SimplifiedExpr, denom: ArithExpr with SimplifiedExpr)
   extends ArithExpr() {
   if (denom == Cst(0))
     throw new ArithmeticException()
 
-  override val HashSeed = 0xf233de5a
+  override def HashSeed(): Int = 0xf233de5a
 
-  override lazy val digest: Int = HashSeed ^ numer.digest() ^ ~denom.digest()
+  override def digest(): Int = HashSeed() ^ numer.digest() ^ ~denom.digest()
 
-  override def toString: String = s"(($numer) / ($denom))"
+  override def toString(): String = s"(($numer) / ($denom))"
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(numer.visitAndRebuild(f) / denom.visitAndRebuild(f))
@@ -1178,11 +1178,11 @@ object AnyDiv {
     }
 }
 
-case class Pow private[arithmetic](b: ArithExpr with SimplifiedExpr, e: ArithExpr with SimplifiedExpr)
+case class Pow private[arithexpr](b: ArithExpr with SimplifiedExpr, e: ArithExpr with SimplifiedExpr)
   extends ArithExpr {
-  override val HashSeed = 0x63fcd7c2
+  override def HashSeed(): Int = 0x63fcd7c2
 
-  override lazy val digest: Int = HashSeed ^ b.digest() ^ e.digest()
+  override def digest(): Int = HashSeed() ^ b.digest() ^ e.digest()
 
   lazy val asProd: Option[List[ArithExpr with SimplifiedExpr]] = (b, e) match {
     /**  (a * b * c)^e  :  a^e * b^e * c^e  **/
@@ -1219,13 +1219,13 @@ object Pow {
   }
 }
 
-case class Log private[arithmetic](b: ArithExpr with SimplifiedExpr, x: ArithExpr with SimplifiedExpr)
+case class Log private[arithexpr](b: ArithExpr with SimplifiedExpr, x: ArithExpr with SimplifiedExpr)
   extends ArithExpr with SimplifiedExpr {
-  override val HashSeed = 0x370285bf
+  override def HashSeed(): Int = 0x370285bf
 
-  override lazy val digest: Int = HashSeed ^ b.digest() ^ ~x.digest()
+  override def digest(): Int = HashSeed() ^ b.digest() ^ ~x.digest()
 
-  override def toString: String = "log" + b + "(" + x + ")"
+  override def toString(): String = "log" + b + "(" + x + ")"
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(Log(b.visitAndRebuild(f), x.visitAndRebuild(f)))
@@ -1246,7 +1246,7 @@ case class Log private[arithmetic](b: ArithExpr with SimplifiedExpr, x: ArithExp
   *
   * @param factors The list of factors. The list should contain at least 2 operands and should not contain other products.
   */
-case class Prod private[arithmetic](factors: List[ArithExpr with SimplifiedExpr]) extends ArithExpr {
+case class Prod private[arithexpr](factors: List[ArithExpr with SimplifiedExpr]) extends ArithExpr {
   Debug.Assert(factors.length > 1, s"Factors should have at least two terms in $toString")
 
   if (Debug.SanityCheck && simplified) {
@@ -1257,16 +1257,16 @@ case class Prod private[arithmetic](factors: List[ArithExpr with SimplifiedExpr]
     })
   }
 
-  override val HashSeed = 0x286be17e
+  override def HashSeed(): Int = 0x286be17e
 
-  override lazy val digest: Int = factors.foldRight(HashSeed)((x, hash) => hash ^ x.digest())
+  override def digest(): Int = factors.foldRight(HashSeed())((x, hash) => hash ^ x.digest())
 
   override def equals(that: Any): Boolean = that match {
     case Prod(factors2)=> factors.length == factors2.length && factors.intersect(factors2).length == factors.length
     case _ => false
   }
 
-  override lazy val toString: String = {
+  override def toString(): String = {
     val m = if (factors.nonEmpty) factors.mkString("*") else ""
     "(" + m + ")"
   }
@@ -1377,7 +1377,7 @@ object Prod {
 }
 
 
-case class Sum private[arithmetic](terms: List[ArithExpr with SimplifiedExpr]) extends ArithExpr {
+case class Sum private[arithexpr](terms: List[ArithExpr with SimplifiedExpr]) extends ArithExpr {
   Debug.Assert(terms.length > 1, s"Terms should have at least two terms in $toString")
 
   if (Debug.SanityCheck && simplified) {
@@ -1387,9 +1387,9 @@ case class Sum private[arithmetic](terms: List[ArithExpr with SimplifiedExpr]) e
     })
   }
 
-  override val HashSeed = 0x8e535130
+  override def HashSeed(): Int = 0x8e535130
 
-  override lazy val digest: Int = terms.foldRight(HashSeed)((x, hash) => hash ^ x.digest())
+  override def digest(): Int = terms.foldRight(HashSeed())((x, hash) => hash ^ x.digest())
 
   /* Factorise a sum smarter and slower than ComputeGCD.factorizeSum. Can deal with division.
    * Consider improving computeGCD and using it here.
@@ -1497,14 +1497,14 @@ object Sum {
 }
 
 // this is really the remainder and not modulo! (I.e. it implements the C semantics of modulo)
-case class Mod private[arithmetic](dividend: ArithExpr with SimplifiedExpr, divisor: ArithExpr with SimplifiedExpr)
+case class Mod private[arithexpr](dividend: ArithExpr with SimplifiedExpr, divisor: ArithExpr with SimplifiedExpr)
   extends ArithExpr {
   //override val HashSeed = 0xedf6bb88
-  override val HashSeed = 0xedf6bb8
+  override def HashSeed(): Int = 0xedf6bb8
 
-  override lazy val digest: Int = HashSeed ^ dividend.digest() ^ ~divisor.digest()
+  override def digest(): Int = HashSeed() ^ dividend.digest() ^ ~divisor.digest()
 
-  override lazy val toString: String = s"($dividend % ($divisor))"
+  override def toString(): String = s"($dividend % ($divisor))"
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(dividend.visitAndRebuild(f) % divisor.visitAndRebuild(f))
@@ -1528,10 +1528,10 @@ object Mod {
     }
 }
 
-case class AbsFunction private[arithmetic](ae: ArithExpr with SimplifiedExpr) extends ArithExpr {
-  override val HashSeed = 0x3570a2ce
+case class AbsFunction private[arithexpr](ae: ArithExpr with SimplifiedExpr) extends ArithExpr {
+  override def HashSeed(): Int = 0x3570a2ce
 
-  override lazy val digest: Int = HashSeed ^ ae.digest()
+  override def digest(): Int = HashSeed() ^ ae.digest()
 
   override lazy val toString: String = "Abs(" + ae + ")"
 
@@ -1546,10 +1546,10 @@ object abs {
   def apply(ae: ArithExpr): ArithExpr with SimplifiedExpr = SimplifyAbs(ae)
 }
 
-case class FloorFunction private[arithmetic](ae: ArithExpr with SimplifiedExpr) extends ArithExpr {
-  override val HashSeed = 0x558052ce
+case class FloorFunction private[arithexpr](ae: ArithExpr with SimplifiedExpr) extends ArithExpr {
+  override def HashSeed(): Int = 0x558052ce
 
-  override lazy val digest: Int = HashSeed ^ ae.digest()
+  override def digest(): Int = HashSeed() ^ ae.digest()
 
   override lazy val toString: String = "Floor(" + ae + ")"
 
@@ -1564,10 +1564,10 @@ object floor {
   def apply(ae: ArithExpr): ArithExpr with SimplifiedExpr = SimplifyFloor(ae)
 }
 
-case class CeilingFunction private[arithmetic](ae: ArithExpr with SimplifiedExpr) extends ArithExpr {
-  override val HashSeed = 0xa45d23d0
+case class CeilingFunction private[arithexpr](ae: ArithExpr with SimplifiedExpr) extends ArithExpr {
+  override def HashSeed(): Int = 0xa45d23d0
 
-  override lazy val digest: Int = HashSeed ^ ae.digest()
+  override def digest(): Int = HashSeed() ^ ae.digest()
 
   override lazy val toString: String = "Ceiling(" + ae + ")"
 
@@ -1584,9 +1584,9 @@ object ceil {
 
 /* Conditional operator. Behaves like the `?:` operator in C. */
 case class IfThenElse (test: BoolExpr, t: ArithExpr with SimplifiedExpr, e: ArithExpr with SimplifiedExpr) extends ArithExpr with SimplifiedExpr {
-  override val HashSeed = 0x32c3d095
+  override def HashSeed(): Int = 0x32c3d095
 
-  override lazy val digest: Int = HashSeed ^ test.digest ^ t.digest() ^ ~e.digest()
+  override def digest(): Int = HashSeed() ^ test.digest ^ t.digest() ^ ~e.digest()
 
   override lazy val toString: String = s"( $test ? $t : $e )"
 
@@ -1609,9 +1609,9 @@ case class IfThenElse (test: BoolExpr, t: ArithExpr with SimplifiedExpr, e: Arit
 
 /* This class is meant to be used as a superclass, therefore, it is not private to this package */
 abstract case class ArithExprFunctionCall(name: String, range: Range = RangeUnknown) extends ArithExpr with SimplifiedExpr {
-  override val HashSeed = 0x3105f133
+  override def HashSeed(): Int = 0x3105f133
 
-  override lazy val digest: Int = HashSeed ^ range.digest() ^ name.hashCode
+  override def digest(): Int = HashSeed() ^ range.digest() ^ name.hashCode
 
   override lazy val toString: String = s"$name($range)"
 
@@ -1633,10 +1633,10 @@ object ArithExprFunctionCall {
   }
 }
 
-class Lookup private[arithmetic](val table: Seq[ArithExpr with SimplifiedExpr],
+class Lookup private[arithexpr](val table: Seq[ArithExpr with SimplifiedExpr],
                                  val index: ArithExpr with SimplifiedExpr, val id: Int)
   extends ArithExprFunctionCall("lookup") {
-  override lazy val digest: Int = HashSeed ^ table.hashCode ^ index.digest() ^ id.hashCode()
+  override def digest(): Int = HashSeed() ^ table.hashCode ^ index.digest() ^ id.hashCode()
 
   override lazy val toString: String = "lookup" + id + "(" + index + ")"
 
@@ -1671,11 +1671,11 @@ object Lookup {
     SimplifyLookup(table, index, id)
 }
 
-case class BitwiseXOR private[arithmetic](a: ArithExpr with SimplifiedExpr, b: ArithExpr with SimplifiedExpr)
+case class BitwiseXOR private[arithexpr](a: ArithExpr with SimplifiedExpr, b: ArithExpr with SimplifiedExpr)
   extends ArithExpr with SimplifiedExpr {
-  override val HashSeed = 0x00000042
+  override def HashSeed(): Int = 0x00000042
 
-  override lazy val digest: Int = HashSeed ^ a.digest() ^ b.digest()
+  override def digest(): Int = HashSeed() ^ a.digest() ^ b.digest()
 
   override def toString: String = "(" + a + ")^(" + b + ")"
 
@@ -1693,10 +1693,10 @@ case class BitwiseXOR private[arithmetic](a: ArithExpr with SimplifiedExpr, b: A
   }
 }
 
-case class BitwiseAND private[arithmetic](a: ArithExpr with SimplifiedExpr, b: ArithExpr with SimplifiedExpr)
+case class BitwiseAND private[arithexpr](a: ArithExpr with SimplifiedExpr, b: ArithExpr with SimplifiedExpr)
   extends ArithExpr with SimplifiedExpr {
-  override val HashSeed = 0x42424200
-  override lazy val digest: Int = HashSeed ^ a.digest() ^ b.digest()
+  override def HashSeed(): Int = 0x42424200
+  override def digest(): Int = HashSeed() ^ a.digest() ^ b.digest()
 
   override def toString: String = "(" + a + ")&(" + b + ")"
 
@@ -1716,8 +1716,8 @@ case class BitwiseAND private[arithmetic](a: ArithExpr with SimplifiedExpr, b: A
 
 case class LShift private[arithmetic](a: ArithExpr with SimplifiedExpr, b: ArithExpr with SimplifiedExpr)
   extends ArithExpr with SimplifiedExpr {
-  override val HashSeed = 0x42420042
-  override lazy val digest: Int = HashSeed ^ a.digest() ^ b.digest()
+  override def HashSeed(): Int = 0x42420042
+  override def digest(): Int = HashSeed() ^ a.digest() ^ b.digest()
 
   override def toString: String = "(" + a + ")<<(" + b + ")"
 
@@ -1745,14 +1745,14 @@ case class LShift private[arithmetic](a: ArithExpr with SimplifiedExpr, b: Arith
   *       Also note that the name is purely decorative during partial evaluation: the variable is actually tracked
   *       using an instance counter, hence multiple instances sharing the same name will not be simplified.
   */
-class Var private[arithmetic](val name: String,
-                              val range: Range = RangeUnknown,
-                              val fixedId: Option[Long] = None) extends ArithExpr {
+class Var private[arithexpr](val name: String,
+                             val range: Range = RangeUnknown,
+                             val fixedId: Option[Long] = None) extends ArithExpr {
   override lazy val hashCode: Int = 8 * 79 + id.hashCode
 
-  override val HashSeed = 0x54e9bd5e
+  override def HashSeed(): Int = 0x54e9bd5e
 
-  override lazy val digest: Int = HashSeed ^ name.hashCode ^ id.hashCode ^ range.digest()
+  override def digest(): Int = HashSeed() ^ name.hashCode ^ id.hashCode ^ range.digest()
 
   /**
     * Same functionality as clone(), but with a SimplifiedExpr trait.
@@ -1797,11 +1797,13 @@ object Var {
 
   def incCnt() : Long = {
     var _id: Long = 0
-    do {
+    while ({
       _id = Var.cnt.incrementAndGet()
       if (_id < 0)
-       Var.cnt.compareAndSet(_id, 0)
-    } while (_id < 0)
+        Var.cnt.compareAndSet(_id, 0)
+
+      _id < 0
+    }) do ()
     _id
   }
 
@@ -1819,9 +1821,9 @@ object Var {
 class NamedVar (override val name: String, override val range: Range = RangeUnknown, override val fixedId: Option[Long] = None) extends Var(name, range, fixedId) {
   override lazy val hashCode = 8 * 79 + name.hashCode
 
-  override val HashSeed = 0x54e9bd5e
+  override def HashSeed(): Int = 0x54e9bd5e
 
-  override lazy val digest: Int = HashSeed ^ name.hashCode ^ range.digest()
+  override def digest(): Int = HashSeed() ^ name.hashCode ^ range.digest()
 
   override def equals(that: Any) = that match {
     case v: NamedVar => this.name == v.name
@@ -1894,7 +1896,7 @@ case class BigSum private[arithmetic](variable:InclusiveIndexVar, body:ArithExpr
 
   override def HashSeed(): Int = 270493
 
-  override def digest(): Int = this.HashSeed() ^ variable.digest ^ body.digest()
+  override def digest(): Int = this.HashSeed() ^ variable.digest() ^ body.digest()
 
   override def visitAndRebuild(f: ArithExpr => ArithExpr): ArithExpr = {
     val v2 = InclusiveIndexVar(variable.visitAndRebuild(f).asInstanceOf[NamedVar])
@@ -1995,7 +1997,7 @@ final case class SteppedCase(v:NamedVar, cases:Seq[ArithExpr]) extends ArithExpr
   private def bodyAsIf(itemsLeft:Seq[ArithExpr], stepIndex:ArithExpr):ArithExpr = {
     itemsLeft.headOption match {
       case None => Cst(0)
-      case Some(thisCase) => ArithExpr.ifThenElse(BoolExpr.arithPredicate(this.v, stepIndex, BoolExpr.ArithPredicate.Operator.==), thisCase,
+      case Some(thisCase) => ArithExpr.ifThenElse(BoolExpr.arithPredicate(this.v, stepIndex, BoolExpr.ArithPredicate.Operator.equal), thisCase,
         bodyAsIf(itemsLeft.tail, stepIndex + 1))
     }
   }
