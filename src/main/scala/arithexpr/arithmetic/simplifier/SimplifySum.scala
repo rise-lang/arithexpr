@@ -409,7 +409,7 @@ object SimplifySum {
     * @return A promoted expression or a simplified sum object.
     */
   def apply(terms: List[ArithExpr with SimplifiedExpr]): ArithExpr with SimplifiedExpr = {
-    if (terms.length > 1) terms.reduce(_ + _)
+    if (terms.length > 1) terms.reduce(SimplifySum(_, _))
     else terms.head
   }
 }
