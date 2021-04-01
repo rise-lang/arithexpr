@@ -37,6 +37,9 @@ object ExprSimplifier {
     case NegInf => NegInf
     case c: Cst => c
     case f: ArithExprFunctionCall => f
+    case ls: LShift => ls
+    case xor: BitwiseXOR => xor
+    case and: BitwiseAND => and
     case v: Var => SimplifyVar(v)
     case Pow(x, y) => SimplifyPow(x, y)
     case Prod(factors) => SimplifyProd(factors)
@@ -47,6 +50,6 @@ object ExprSimplifier {
     case AbsFunction(ae) => SimplifyAbs(ae)
     case FloorFunction(ae) => SimplifyFloor(ae)
     case CeilingFunction(ae) => SimplifyCeiling(ae)
-    case bs:BigSum => SimplifyBigSum(bs)
+    case bs: BigSum => SimplifyBigSum(bs)
   }
 }
