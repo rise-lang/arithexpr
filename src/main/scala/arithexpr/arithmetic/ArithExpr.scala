@@ -237,7 +237,7 @@ abstract sealed class ArithExpr {
 
   def !===(that: ArithExpr): Boolean = ! ===(that)
 
-  def pow(that: ArithExpr): ArithExpr with SimplifiedExpr = SimplifyPow(this, that)
+  def pow(that: ArithExpr): ArithExpr with SimplifiedExpr = ExprSimplifier.fixpoint(Pow(this, that))
 
   /**
     * Multiplication operator.
@@ -245,7 +245,7 @@ abstract sealed class ArithExpr {
     * @param that Right-hand side.
     * @return An expression representing the product (not necessarily a Prod object).
     */
-  def *(that: ArithExpr): ArithExpr with SimplifiedExpr = SimplifyProd(this, that)
+  def *(that: ArithExpr): ArithExpr with SimplifiedExpr = ExprSimplifier.fixpoint(Prod(List(this, that)))
 
   /**
     * Addition operator.
@@ -253,7 +253,7 @@ abstract sealed class ArithExpr {
     * @param that Right-hand side.
     * @return An expression representing the sum (not necessarily a Sum object).
     */
-  def +(that: ArithExpr): ArithExpr with SimplifiedExpr = SimplifySum(this, that)
+  def +(that: ArithExpr): ArithExpr with SimplifiedExpr = ExprSimplifier.fixpoint(Sum(List(this, that)))
 
   /**
     * Division operator in Natural set (ie int div like Scala): `1/2=0`.
@@ -262,7 +262,7 @@ abstract sealed class ArithExpr {
     * @return An IntDiv object wrapping the operands.
     * @throws ArithmeticException if the right-hand-side is zero.
     */
-  def /(that: ArithExpr): ArithExpr with SimplifiedExpr = SimplifyIntDiv(this, that)
+  def /(that: ArithExpr): ArithExpr with SimplifiedExpr = ExprSimplifier.fixpoint(IntDiv(this, that))
 
   /**
     * Ordinal division operator.
@@ -271,7 +271,7 @@ abstract sealed class ArithExpr {
     * @param that Right-hand side (divisor).
     * @return The expression multiplied by the divisor exponent -1.
     */
-  def /^(that: ArithExpr): ArithExpr with SimplifiedExpr = SimplifyProd(this, SimplifyPow(that, -1))
+  def /^(that: ArithExpr): ArithExpr with SimplifiedExpr = this * that.pow(-1)
 
   /**
     * Transform subtraction into sum of product with -1
@@ -290,7 +290,7 @@ abstract sealed class ArithExpr {
     * @note This operation is defined for negative number since it computes the remainder of the algebraic quotient
     *       without fractional part times the divisor, ie (a/b)*b + a%b is equal to a.
     */
-  def %(that: ArithExpr): ArithExpr with SimplifiedExpr = SimplifyMod(this, that)
+  def %(that: ArithExpr): ArithExpr with SimplifiedExpr = ExprSimplifier.fixpoint(Mod(this, that))
 
   /**
     * +    * XOR Operator, C style
@@ -394,7 +394,8 @@ object ArithExpr {
   implicit def simplifyImplicitly(aes: Seq[ArithExpr]): Seq[ArithExpr with SimplifiedExpr] = ExprSimplifier(aes)
   implicit def simplifyImplicitly(aes: List[ArithExpr]): List[ArithExpr with SimplifiedExpr] = ExprSimplifier(aes)
 
-  val isCanonicallySorted: (ArithExpr, ArithExpr) => Boolean = (x: ArithExpr, y: ArithExpr) => (x, y) match {
+  val isCanonicallySorted: (ArithExpr with SimplifiedExpr, ArithExpr with SimplifiedExpr) => Boolean =
+    (x: ArithExpr with SimplifiedExpr, y: ArithExpr with SimplifiedExpr) => (x, y) match {
     case (Cst(a), Cst(b)) => a < b
     case (_: Cst, _) => true // constants first
     case (_, _: Cst) => false
