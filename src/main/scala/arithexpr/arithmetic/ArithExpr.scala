@@ -1753,7 +1753,7 @@ class Var private[arithmetic](val name: String,
 
   override val HashSeed = 0x54e9bd5e
 
-  override lazy val digest: Int = HashSeed ^ name.hashCode ^ id.hashCode ^ range.digest()
+  override lazy val digest: Int = HashSeed ^ id.hashCode
 
   /**
     * Same functionality as clone(), but with a SimplifiedExpr trait.
@@ -1822,7 +1822,7 @@ class NamedVar (override val name: String, override val range: Range = RangeUnkn
 
   override val HashSeed = 0x54e9bd5e
 
-  override lazy val digest: Int = HashSeed ^ name.hashCode ^ range.digest()
+  override lazy val digest: Int = HashSeed ^ name.hashCode
 
   override def equals(that: Any) = that match {
     case v: NamedVar => this.name == v.name
