@@ -847,8 +847,7 @@ object ArithExpr {
   }
 
   def substitute(e: ArithExpr, substitutions: scala.collection.Map[ArithExpr, ArithExpr]): ArithExpr = {
-    val r = e.substitute(substitutions).getOrElse(e)
-    r
+    e.substitute(substitutions).getOrElse(e)
   }
 
   /**
@@ -1783,11 +1782,11 @@ class Var private[arithmetic](val name: String,
   }
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = {
-    f(Var(name, range.visitAndRebuild(f), Some(id)))
+    f(this.copy(range.visitAndRebuild(f)))
   }
 
   override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
-    subs.get(this).orElse(range.substitute(subs).map(Var(name, _, Some(id))))
+    subs.get(this).orElse(range.substitute(subs).map(this.copy))
   }
 
   def copy(r: Range) = new Var(name, r, Some(this.id))
@@ -1835,14 +1834,6 @@ class NamedVar (override val name: String, override val range: Range = RangeUnkn
 
   override def copy(r: Range) = new NamedVar(name, r)
 
-  override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = {
-    f(NamedVar(name, range.visitAndRebuild(f)))
-  }
-
-  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
-    subs.get(this).orElse(range.substitute(subs).map(NamedVar(name, _)))
-  }
-
   override def cloneSimplified() = new NamedVar(name, range) with SimplifiedExpr
 }
 
@@ -1870,9 +1861,6 @@ class OpaqueVar(val v: Var,
   override lazy val sign: Sign.Value = v.sign
 
   override lazy val isEvaluable = false
-
-  override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
-    f(new OpaqueVar(v, range.visitAndRebuild(f), Some(id)))
 }
 
 /* This class is ment to be used as a superclass, therefore, it is not private to this package */
@@ -1885,8 +1873,6 @@ abstract class ExtensibleVar(override val name: String,
 
   /* redeclare as abstract to force subclasses to implement */
   override def cloneSimplified(): Var with SimplifiedExpr
-
-  override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr
 }
 
 case class BigSum private[arithmetic](variable:InclusiveIndexVar, body:ArithExpr) extends ArithExpr {
