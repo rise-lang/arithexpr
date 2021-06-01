@@ -2,7 +2,7 @@ lazy val arithExpr = (project in file("."))
   .settings(
     name          := "ArithExpr",
     version       := "1.0",
-    scalaVersion := "3.0.0-RC3",
+    scalaVersion := "3.0.0",
     organization := "org.rise-lang",
 
     scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
