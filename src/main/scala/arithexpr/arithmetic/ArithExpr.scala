@@ -237,7 +237,7 @@ abstract sealed class ArithExpr {
 
   def !===(that: ArithExpr): Boolean = ! ===(that)
 
-  def pow(that: ArithExpr): ArithExpr with SimplifiedExpr = SimplifyPow(this, that)
+  def pow(that: ArithExpr): ArithExpr with SimplifiedExpr = ExprSimplifier.fixpoint(Pow(this, that))
 
   /**
     * Multiplication operator.
@@ -245,7 +245,7 @@ abstract sealed class ArithExpr {
     * @param that Right-hand side.
     * @return An expression representing the product (not necessarily a Prod object).
     */
-  def *(that: ArithExpr): ArithExpr with SimplifiedExpr = SimplifyProd(this, that)
+  def *(that: ArithExpr): ArithExpr with SimplifiedExpr = ExprSimplifier.fixpoint(Prod(List(this, that)))
 
   /**
     * Addition operator.
@@ -253,7 +253,7 @@ abstract sealed class ArithExpr {
     * @param that Right-hand side.
     * @return An expression representing the sum (not necessarily a Sum object).
     */
-  def +(that: ArithExpr): ArithExpr with SimplifiedExpr = SimplifySum(this, that)
+  def +(that: ArithExpr): ArithExpr with SimplifiedExpr = ExprSimplifier.fixpoint(Sum(List(this, that)))
 
   /**
     * Division operator in Natural set (ie int div like Scala): `1/2=0`.
@@ -262,7 +262,7 @@ abstract sealed class ArithExpr {
     * @return An IntDiv object wrapping the operands.
     * @throws ArithmeticException if the right-hand-side is zero.
     */
-  def /(that: ArithExpr): ArithExpr with SimplifiedExpr = SimplifyIntDiv(this, that)
+  def /(that: ArithExpr): ArithExpr with SimplifiedExpr = ExprSimplifier.fixpoint(IntDiv(this, that))
 
   /**
     * Ordinal division operator.
@@ -271,7 +271,7 @@ abstract sealed class ArithExpr {
     * @param that Right-hand side (divisor).
     * @return The expression multiplied by the divisor exponent -1.
     */
-  def /^(that: ArithExpr): ArithExpr with SimplifiedExpr = SimplifyProd(this, SimplifyPow(that, -1))
+  def /^(that: ArithExpr): ArithExpr with SimplifiedExpr = this * that.pow(-1)
 
   /**
     * Transform subtraction into sum of product with -1
@@ -290,7 +290,7 @@ abstract sealed class ArithExpr {
     * @note This operation is defined for negative number since it computes the remainder of the algebraic quotient
     *       without fractional part times the divisor, ie (a/b)*b + a%b is equal to a.
     */
-  def %(that: ArithExpr): ArithExpr with SimplifiedExpr = SimplifyMod(this, that)
+  def %(that: ArithExpr): ArithExpr with SimplifiedExpr = ExprSimplifier.fixpoint(Mod(this, that))
 
   /**
     * +    * XOR Operator, C style
@@ -394,7 +394,8 @@ object ArithExpr {
   implicit def simplifyImplicitly(aes: Seq[ArithExpr]): Seq[ArithExpr with SimplifiedExpr] = ExprSimplifier(aes)
   implicit def simplifyImplicitly(aes: List[ArithExpr]): List[ArithExpr with SimplifiedExpr] = ExprSimplifier(aes)
 
-  val isCanonicallySorted: (ArithExpr, ArithExpr) => Boolean = (x: ArithExpr, y: ArithExpr) => (x, y) match {
+  val isCanonicallySorted: (ArithExpr with SimplifiedExpr, ArithExpr with SimplifiedExpr) => Boolean =
+    (x: ArithExpr with SimplifiedExpr, y: ArithExpr with SimplifiedExpr) => (x, y) match {
     case (Cst(a), Cst(b)) => a < b
     case (_: Cst, _) => true // constants first
     case (_, _: Cst) => false
@@ -846,8 +847,7 @@ object ArithExpr {
   }
 
   def substitute(e: ArithExpr, substitutions: scala.collection.Map[ArithExpr, ArithExpr]): ArithExpr = {
-    val r = e.substitute(substitutions).getOrElse(e)
-    r
+    e.substitute(substitutions).getOrElse(e)
   }
 
   /**
@@ -1752,7 +1752,7 @@ class Var private[arithexpr](val name: String,
 
   override def HashSeed(): Int = 0x54e9bd5e
 
-  override def digest(): Int = HashSeed() ^ name.hashCode ^ id.hashCode ^ range.digest()
+  override def digest(): Int = HashSeed() ^ id.hashCode
 
   /**
     * Same functionality as clone(), but with a SimplifiedExpr trait.
@@ -1782,11 +1782,11 @@ class Var private[arithexpr](val name: String,
   }
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = {
-    f(Var(name, range.visitAndRebuild(f), Some(id)))
+    f(this.copy(range.visitAndRebuild(f)))
   }
 
   override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
-    subs.get(this).orElse(range.substitute(subs).map(Var(name, _, Some(id))))
+    subs.get(this).orElse(range.substitute(subs).map(this.copy))
   }
 
   def copy(r: Range) = new Var(name, r, Some(this.id))
@@ -1823,7 +1823,7 @@ class NamedVar (override val name: String, override val range: Range = RangeUnkn
 
   override def HashSeed(): Int = 0x54e9bd5e
 
-  override def digest(): Int = HashSeed() ^ name.hashCode ^ range.digest()
+  override def digest(): Int = HashSeed() ^ name.hashCode
 
   override def equals(that: Any) = that match {
     case v: NamedVar => this.name == v.name
@@ -1835,14 +1835,6 @@ class NamedVar (override val name: String, override val range: Range = RangeUnkn
   override lazy val toStringWithRange = s"$toString[${range.toString}]"
 
   override def copy(r: Range) = new NamedVar(name, r)
-
-  override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = {
-    f(NamedVar(name, range.visitAndRebuild(f)))
-  }
-
-  override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
-    subs.get(this).orElse(range.substitute(subs).map(NamedVar(name, _)))
-  }
 
   override def cloneSimplified() = new NamedVar(name, range) with SimplifiedExpr
 }
@@ -1871,9 +1863,6 @@ class OpaqueVar(val v: Var,
   override lazy val sign: Sign.Value = v.sign
 
   override lazy val isEvaluable = false
-
-  override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
-    f(new OpaqueVar(v, range.visitAndRebuild(f), Some(id)))
 }
 
 /* This class is ment to be used as a superclass, therefore, it is not private to this package */
@@ -1886,8 +1875,6 @@ abstract class ExtensibleVar(override val name: String,
 
   /* redeclare as abstract to force subclasses to implement */
   override def cloneSimplified(): Var with SimplifiedExpr
-
-  override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr
 }
 
 case class BigSum private[arithmetic](variable:InclusiveIndexVar, body:ArithExpr) extends ArithExpr {

@@ -183,8 +183,8 @@ object SimplifyProd {
       // Distribute sums
       // distributionAllowed flag is used when trying to simplify a sum of products in SimplifySum to see if two
       // expressions can be simplified through multiplication
-      case (x, s: Sum) if distributionAllowed => Some(s.terms.map(_ * x).reduce(_ + _))
-      case (s: Sum, x) if distributionAllowed => Some(s.terms.map(_ * x).reduce(_ + _))
+      case (x, s: Sum) if distributionAllowed => Some(s.terms.map(_ * x).reduce(SimplifySum(_, _)))
+      case (s: Sum, x) if distributionAllowed => Some(s.terms.map(_ * x).reduce(SimplifySum(_, _)))
 
 
       case (x, y) => None
@@ -245,8 +245,12 @@ object SimplifyProd {
     * @return
     */
   def apply(factors: List[ArithExpr with SimplifiedExpr]): ArithExpr with SimplifiedExpr = {
-    factors.foldLeft[ArithExpr with SimplifiedExpr](Cst(1)) {
-      case (acc, factor) => acc * factor
+    if (factors.isEmpty) {
+      Cst(1)
+    } else {
+      factors.reduce[ArithExpr with SimplifiedExpr] {
+        case (acc, factor) => SimplifyProd(acc, factor)
+      }
     }
   }
 }
