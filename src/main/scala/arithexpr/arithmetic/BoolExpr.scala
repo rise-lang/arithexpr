@@ -52,7 +52,7 @@ object BoolExpr {
     override def freeVariables() = Set()
 
   }
-  case class ArithPredicate private[arithexpr](lhs:ArithExpr, rhs:ArithExpr, op:Operator) extends BoolExpr {
+  case class ArithPredicate(lhs:ArithExpr, rhs:ArithExpr, op:Operator) extends BoolExpr {
     val digest: Int = 0x7c6736c0 ^ lhs.digest() ^ rhs.digest() ^ op.hashCode()
 
     override def toString: String = s"($lhs) $op ($rhs)"
