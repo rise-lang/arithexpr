@@ -88,7 +88,7 @@ private[arithmetic] object ComputeGCD {
     val fac = for {
       t1 <- terms
       t2 <- terms
-      if t1.HashSeed() < t2.HashSeed() || (t1.HashSeed() == t2.HashSeed() && t1.digest() < t2.digest())
+      if t1.HashSeed < t2.HashSeed || (t1.HashSeed == t2.HashSeed && t1.digest < t2.digest)
     } yield ComputeGCD(t1, t2)
 
     if (fac.isEmpty) Cst(1)

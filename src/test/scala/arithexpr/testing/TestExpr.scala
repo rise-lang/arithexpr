@@ -11,8 +11,8 @@ class OclTestFunction private(name: String, range: Range)
   extends ArithExprFunctionCall(name, range) {
 
   lazy val toOCLString = s"$name()"
-  override def digest(): Int = HashSeed() ^ /*range.digest() ^*/ name.hashCode
-  override def HashSeed(): Int = 0x31111111
+  override lazy val digest: Int = HashSeed ^ /*range.digest() ^*/ name.hashCode
+  override lazy val HashSeed: Int = 0x31111111
   override def equals(that: Any) = that match {
     case f: OclTestFunction => this.name.equals(f.name)
     case _ => false

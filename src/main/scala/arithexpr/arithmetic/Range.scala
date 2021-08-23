@@ -9,7 +9,7 @@ sealed abstract class Range {
   // maximum value this range can take
   val max : ArithExpr with SimplifiedExpr
 
-  def digest(): Int = min.digest() ^ max.digest()
+  lazy val digest: Int = min.digest ^ max.digest
 
   override def equals(that: Any): Boolean = that match {
     case r: Range => this.min == r.min && this.max == r.max

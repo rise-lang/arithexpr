@@ -128,7 +128,7 @@ object ExprPrinter {
   }
 
   def dot(expr: ArithExpr, graph: DotGraph = new DotGraph(), parent: Int = -1): Int = {
-    val hash = Integer.toHexString(expr.digest())
+    val hash = Integer.toHexString(expr.digest)
     def patch(label: String) = label + "\\n" + hash
 
     // Build current node
