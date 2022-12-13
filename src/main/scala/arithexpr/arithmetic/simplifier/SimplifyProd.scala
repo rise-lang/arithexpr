@@ -2,6 +2,8 @@ package arithexpr
 package arithmetic
 package simplifier
 
+import scala.util.control.NonLocalReturns.*
+
 /**
  * Product simplifier
  */
@@ -36,7 +38,7 @@ object SimplifyProd {
   def addFactor(factors: List[ArithExpr with SimplifiedExpr], factor: ArithExpr with SimplifiedExpr,
                 factorsComeFromProd: Boolean = false,
                 someFactorsComeFromSum: Boolean = true,
-                someFactorsComeFromPow: Boolean = true): ArithExpr with SimplifiedExpr = {
+                someFactorsComeFromPow: Boolean = true): ArithExpr with SimplifiedExpr = returning {
     // Avoids using `zipWithIndex` with creates boxed integers, hurting performance
     var i = 0
     factors.foreach { x =>
@@ -45,7 +47,7 @@ object SimplifyProd {
         powerMergeAllowed = !someFactorsComeFromPow)
 
       if (newfac.isDefined)
-        return replaceAt(i, newfac.get, factors).reduce(_ * _)
+        throwReturn(replaceAt(i, newfac.get, factors).reduce(_ * _))
 
       i += 1
     }

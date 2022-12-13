@@ -3,6 +3,8 @@ package arithmetic
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
+import scala.util.control.NonLocalReturns.*
+
 object Sign extends Enumeration {
   type Sign = Value
   val Positive, Negative, Unknown = Value
@@ -51,12 +53,12 @@ object Sign extends Enumeration {
     }
   }
 
-  private def signProd(factors: List[ArithExpr]): Sign.Value = {
+  private def signProd(factors: List[ArithExpr]): Sign.Value = returning {
     factors.foldLeft(Sign.Positive)((s: Sign.Value, factor) =>
       s match {
         case Sign.Positive => factor.sign
         case Sign.Negative => Sign.reverse(factor.sign)
-        case Sign.Unknown => return Sign.Unknown
+        case Sign.Unknown => throwReturn(Sign.Unknown)
       })
   }
 

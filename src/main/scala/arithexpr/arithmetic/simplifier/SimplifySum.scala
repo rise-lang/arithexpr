@@ -3,6 +3,7 @@ package arithmetic
 package simplifier
 
 import scala.collection.mutable
+import scala.util.control.NonLocalReturns.*
 
 object SimplifySum {
 
@@ -24,12 +25,12 @@ object SimplifySum {
     */
   def addTerm(terms: List[ArithExpr with SimplifiedExpr], term: ArithExpr with SimplifiedExpr,
               termsComeFromSum: Boolean = false):
-  Either[ArithExpr with SimplifiedExpr, ArithExpr with SimplifiedExpr] = {
+  Either[ArithExpr with SimplifiedExpr, ArithExpr with SimplifiedExpr] = returning {
     // Avoids using `zipWithIndex` with creates boxed integers, hurting performance
     var i = 0
     terms.foreach { x =>
       val newterm = combineTerms(term, x)
-      if (newterm.isDefined) return Right(replaceAt(i, newterm.get, terms).reduce(_ + _))
+      if (newterm.isDefined) throwReturn(Right(replaceAt(i, newterm.get, terms).reduce(_ + _)))
       i += 1
     }
 
@@ -227,7 +228,7 @@ object SimplifySum {
       })
 
       def inferSigns(squaredSumTermsToInfer: List[ArithExpr],
-                     inferredSigns: Map[ArithExpr, Sign.Sign]): Option[Map[ArithExpr, Sign.Sign]] = {
+                     inferredSigns: Map[ArithExpr, Sign.Sign]): Option[Map[ArithExpr, Sign.Sign]] = returning {
         squaredSumTermsToInfer match {
           case Nil => // All terms have been inferred. Return result
             Some(inferredSigns)
@@ -247,7 +248,7 @@ object SimplifySum {
                     if (updatedSigns(secondFactor) != inferredSecondFactorSign)
                     // If we have already inferred the sign for the second factor and it is different, the very first sign
                     // we informed in this combination is incorrect
-                      return None
+                      throwReturn(None)
                     else updatedSigns // We've already inferred the sign for the second factor and it's the same
                   } else (updatedSigns + (secondFactor -> inferredSecondFactorSign))
               }

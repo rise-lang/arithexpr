@@ -1,14 +1,14 @@
 package arithexpr.arithmetic
 
-import java.util.concurrent.atomic.AtomicLong
-
 import arithexpr.arithmetic.BoolExpr.ArithPredicate
 import arithexpr.arithmetic.BoolExpr.ArithPredicate.Operator
-import arithexpr.arithmetic.NotEvaluableException._
-import arithexpr.arithmetic.NotEvaluableToIntException._
-import arithexpr.arithmetic.simplifier._
+import arithexpr.arithmetic.NotEvaluableException.*
+import arithexpr.arithmetic.NotEvaluableToIntException.*
+import arithexpr.arithmetic.simplifier.*
 
+import java.util.concurrent.atomic.AtomicLong
 import scala.language.implicitConversions
+import scala.util.control.NonLocalReturns.*
 
 /**
   * Class `ArithExpr` is the base class for arithmetic expression trees.
@@ -322,7 +322,7 @@ abstract sealed class ArithExpr {
     * @param that Right-hand side of the comparison
     * @return A Predicate object
     */
-  def lt(that: ArithExpr) = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.<)
+  def lt(that: ArithExpr): BoolExpr = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.<)
 
   /**
     * Greater than comparison operator.
@@ -330,7 +330,7 @@ abstract sealed class ArithExpr {
     * @param that Right-hand side of the comparison
     * @return A Predicate object
     */
-  def gt(that: ArithExpr) = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.>)
+  def gt(that: ArithExpr): BoolExpr = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.>)
 
   /**
     * Lower-or-equal comparison operator.
@@ -338,7 +338,7 @@ abstract sealed class ArithExpr {
     * @param that Right-hand side of the comparison
     * @return A Predicate object
     */
-  def le(that: ArithExpr) = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.<=)
+  def le(that: ArithExpr): BoolExpr = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.<=)
 
   /**
     * Greater-or-equal comparison operator.
@@ -346,7 +346,7 @@ abstract sealed class ArithExpr {
     * @param that Right-hand side of the comparison
     * @return A Predicate object
     */
-  def ge(that: ArithExpr) = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.>=)
+  def ge(that: ArithExpr): BoolExpr = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.>=)
 
   /**
     * Equality comparison operator.
@@ -355,7 +355,7 @@ abstract sealed class ArithExpr {
     * @param that Right-hand side of the comparison
     * @return A Predicate object
     */
-  def eq(that: ArithExpr) = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.equal)
+  def eq(that: ArithExpr): BoolExpr = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.equal)
 
   /**
     * Inequality comparison operator.
@@ -364,7 +364,7 @@ abstract sealed class ArithExpr {
     * @param that Right-hand side of the comparison
     * @return A Predicate object
     */
-  def ne(that: ArithExpr) = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.notEqual)
+  def ne(that: ArithExpr): BoolExpr = BoolExpr.arithPredicate(this, that, BoolExpr.ArithPredicate.Operator.notEqual)
 
   /**
     * The hash function creates a 32 bit digest of the expression. Each node type has a unique salt and combines
@@ -469,22 +469,22 @@ object ArithExpr {
     throw NotEvaluable
   }
 
-  private def upperBound(factors: List[ArithExpr]): Option[Long] = {
+  private def upperBound(factors: List[ArithExpr]): Option[Long] = returning {
     Some(SimplifyProd(factors.map({
       case v: Var => v.range.max match {
         case max: Cst => max
-        case _ => return None
+        case _ => throwReturn(None)
       }
       case c: Cst => c
       case _ => throw new IllegalArgumentException("upperBound expects a Var or a Cst")
     })).eval)
   }
 
-  private def lowerBound(factors: List[ArithExpr]): Option[Long] = {
+  private def lowerBound(factors: List[ArithExpr]): Option[Long] = returning {
     Some(SimplifyProd(factors.map({
       case v: Var => v.range.min match {
         case min: Cst => min
-        case _ => return None
+        case _ => throwReturn(None)
       }
       case c: Cst => c
       case _ => throw new IllegalArgumentException("lowerBound expects a Var or a Cst")
@@ -492,8 +492,8 @@ object ArithExpr {
   }
 
 
-  def contains(expr: ArithExpr, elem: ArithExpr): Boolean = {
-    visit(expr, e => if (e == elem) return true)
+  def contains(expr: ArithExpr, elem: ArithExpr): Boolean = returning {
+    visit(expr, e => if (e == elem) throwReturn(true))
     false
   }
 
@@ -771,7 +771,7 @@ object ArithExpr {
     }
   }
 
-  def visitUntil(e: ArithExpr, f: (ArithExpr) => Boolean): Boolean = {
+  def visitUntil(e: ArithExpr, f: (ArithExpr) => Boolean): Boolean = returning {
     if (f(e)) true
     else {
       e match {
@@ -786,10 +786,10 @@ object ArithExpr {
         case FloorFunction(expr) => visitUntil(expr, f)
         case CeilingFunction(expr) => visitUntil(expr, f)
         case Sum(terms) =>
-          terms.foreach(t => if (visitUntil(t, f)) return true)
+          terms.foreach(t => if (visitUntil(t, f)) throwReturn(true))
           false
         case Prod(terms) =>
-          terms.foreach(t => if (visitUntil(t, f)) return true)
+          terms.foreach(t => if (visitUntil(t, f)) throwReturn(true))
           false
         case gc: Lookup => visitUntil(gc.index, f)
         case BigSum(variable, body) =>
@@ -806,8 +806,8 @@ object ArithExpr {
     }
   }
 
-  private def visitUntilGroup(items:Iterable[ArithExpr], f:ArithExpr => Boolean):Boolean = {
-    items.foreach(t => if(visitUntil(t, f)) return true)
+  private def visitUntilGroup(items:Iterable[ArithExpr], f:ArithExpr => Boolean):Boolean = returning {
+    items.foreach(t => if(visitUntil(t, f)) throwReturn(true))
     false
   }
 
@@ -1064,7 +1064,7 @@ object ArithExpr {
       * @param max Upper bound of the range
       * @return The value x clamped to the interval [min,max]
       */
-    def Clamp(x: ArithExpr, min: ArithExpr, max: ArithExpr) = Min(Max(x, min), max)
+    def Clamp(x: ArithExpr, min: ArithExpr, max: ArithExpr): ArithExpr = Min(Max(x, min), max)
   }
 }
 
@@ -1078,7 +1078,7 @@ case object ? extends ArithExpr with SimplifiedExpr {
 
   override lazy val digest: Int = HashSeed
 
-  override lazy val sign = Sign.Unknown
+  override lazy val sign: Sign.Value = Sign.Unknown
 
   override def ==(that: ArithExpr): Boolean = that.getClass == this.getClass
 
@@ -1092,7 +1092,7 @@ case object PosInf extends ArithExpr with SimplifiedExpr {
 
   override lazy val digest: Int = HashSeed
 
-  override lazy val sign = Sign.Positive
+  override lazy val sign: Sign.Value = Sign.Positive
 
   override def ==(that: ArithExpr): Boolean = that.getClass == this.getClass
 
@@ -1106,7 +1106,7 @@ case object NegInf extends ArithExpr with SimplifiedExpr {
 
   override lazy val digest: Int = HashSeed
 
-  override lazy val sign = Sign.Negative
+  override lazy val sign: Sign.Value = Sign.Negative
 
   override def ==(that: ArithExpr): Boolean = that.getClass == this.getClass
 
@@ -1120,7 +1120,7 @@ case class Cst(c: Long) extends ArithExpr with SimplifiedExpr {
 
   override lazy val digest: Int = HashSeed
 
-  override def toString(): String = c.toString
+  override def toString: String = c.toString
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = f(this)
 
@@ -1136,7 +1136,7 @@ case class IntDiv private[arithexpr](numer: ArithExpr with SimplifiedExpr, denom
 
   override lazy val digest: Int = HashSeed ^ numer.digest ^ ~denom.digest
 
-  override def toString(): String = s"(($numer) / ($denom))"
+  override def toString: String = s"(($numer) / ($denom))"
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(numer.visitAndRebuild(f) / denom.visitAndRebuild(f))
@@ -1225,7 +1225,7 @@ case class Log(b: ArithExpr with SimplifiedExpr, x: ArithExpr with SimplifiedExp
 
   override lazy val digest: Int = HashSeed ^ b.digest ^ ~x.digest
 
-  override def toString(): String = "log" + b + "(" + x + ")"
+  override def toString: String = "log" + b + "(" + x + ")"
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(Log(b.visitAndRebuild(f), x.visitAndRebuild(f)))
@@ -1266,7 +1266,7 @@ case class Prod private[arithexpr](factors: List[ArithExpr with SimplifiedExpr])
     case _ => false
   }
 
-  override def toString(): String = {
+  override def toString: String = {
     val m = if (factors.nonEmpty) factors.mkString("*") else ""
     "(" + m + ")"
   }
@@ -1504,7 +1504,7 @@ case class Mod private[arithexpr](dividend: ArithExpr with SimplifiedExpr, divis
 
   override lazy val digest: Int = HashSeed ^ dividend.digest ^ ~divisor.digest
 
-  override def toString(): String = s"($dividend % ($divisor))"
+  override def toString: String = s"($dividend % ($divisor))"
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr =
     f(dividend.visitAndRebuild(f) % divisor.visitAndRebuild(f))
@@ -1819,13 +1819,13 @@ object Var {
 }
 
 class NamedVar (override val name: String, override val range: Range = RangeUnknown, override val fixedId: Option[Long] = None) extends Var(name, range, fixedId) {
-  override lazy val hashCode = 8 * 79 + name.hashCode
+  override lazy val hashCode: Int = 8 * 79 + name.hashCode
 
   override lazy val HashSeed: Int = 0x54e9bd5e
 
   override lazy val digest: Int = HashSeed ^ name.hashCode
 
-  override def equals(that: Any) = that match {
+  override def equals(that: Any): Boolean = that match {
     case v: NamedVar => this.name == v.name
     case _ => false
   }
