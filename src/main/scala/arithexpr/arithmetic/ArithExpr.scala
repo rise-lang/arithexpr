@@ -189,9 +189,9 @@ abstract sealed class ArithExpr {
     */
   def ==(that: ArithExpr): Boolean = {
     (this, that) match {
-        //This library makes extensive use of construction-time computation for the various ArithExpr object - often coupled
-        //with lazy vals. It sometimes happen that, while evaluating this construction-time values, bit's of unitialised
-        //arithmetic expressions are compared. This hack guards against such cases.
+      //This library makes extensive use of construction-time computation for the various ArithExpr object - often coupled
+      //with lazy vals. It sometimes happen that, while evaluating this construction-time values, bit's of unitialised
+      //arithmetic expressions are compared. This hack guards against such cases.
       case (null, _) => return false
       case (_, null) => return false
       case _ =>
@@ -202,7 +202,7 @@ abstract sealed class ArithExpr {
     else false
   }
 
-  def !==(that: ArithExpr): Boolean = ! == (that)
+  def !==(that: ArithExpr): Boolean = ! ==(that)
 
   /**
     * True equality operator. Compare each operands.
@@ -231,7 +231,7 @@ abstract sealed class ArithExpr {
     case (SteppedCase(v1, cases1), SteppedCase(v2, cases2)) => v1.name == v2.name && cases1 == cases2
     case (LShift(a1, b1), LShift(a2, b2)) => a1 == a2 && b1 == b2
     case _ =>
-//      System.err.println(s"$this and $that are not equal")
+      //      System.err.println(s"$this and $that are not equal")
       false
   }
 
@@ -391,27 +391,29 @@ object ArithExpr {
   implicit def longToCst(i: Long): ArithExpr with SimplifiedExpr = Cst(i)
 
   implicit def simplifyImplicitly(ae: ArithExpr): ArithExpr with SimplifiedExpr = ExprSimplifier(ae)
+
   implicit def simplifyImplicitly(aes: Seq[ArithExpr]): Seq[ArithExpr with SimplifiedExpr] = ExprSimplifier(aes)
+
   implicit def simplifyImplicitly(aes: List[ArithExpr]): List[ArithExpr with SimplifiedExpr] = ExprSimplifier(aes)
 
   val isCanonicallySorted: (ArithExpr with SimplifiedExpr, ArithExpr with SimplifiedExpr) => Boolean =
     (x: ArithExpr with SimplifiedExpr, y: ArithExpr with SimplifiedExpr) => (x, y) match {
-    case (Cst(a), Cst(b)) => a < b
-    case (_: Cst, _) => true // constants first
-    case (_, _: Cst) => false
-    case (x:NamedVar, y:NamedVar) => x.name.compareTo(y.name) < 0
-    case (x: Var, y: Var) => x.id < y.id // order variables based on id
-    case (_: Var, _) => true // variables always after constants second
-    case (_, _: Var) => false
-    case (Prod(factors1), Prod(factors2)) =>
-      factors1.zip(factors2).dropWhile(x => x._1 == x._2).headOption match {
-        case None => false
-        case Some(x) => isCanonicallySorted(x._1, x._2)
-      }
-    case _ => x.HashSeed() < y.HashSeed() || (x.HashSeed() == y.HashSeed() && x.digest() < y.digest())
-  }
+      case (Cst(a), Cst(b)) => a < b
+      case (_: Cst, _) => true // constants first
+      case (_, _: Cst) => false
+      case (x: NamedVar, y: NamedVar) => x.name.compareTo(y.name) < 0
+      case (x: Var, y: Var) => x.id < y.id // order variables based on id
+      case (_: Var, _) => true // variables always after constants second
+      case (_, _: Var) => false
+      case (Prod(factors1), Prod(factors2)) =>
+        factors1.zip(factors2).dropWhile(x => x._1 == x._2).headOption match {
+          case None => false
+          case Some(x) => isCanonicallySorted(x._1, x._2)
+        }
+      case _ => x.HashSeed() < y.HashSeed() || (x.HashSeed() == y.HashSeed() && x.digest() < y.digest())
+    }
 
-  def ifThenElse(p:BoolExpr, `then`:ArithExpr, `else`:ArithExpr):ArithExpr = SimplifyIfThenElse(p, `then`, `else`)
+  def ifThenElse(p: BoolExpr, `then`: ArithExpr, `else`: ArithExpr): ArithExpr = SimplifyIfThenElse(p, `then`, `else`)
 
   def gcd(a: ArithExpr, b: ArithExpr): ArithExpr = ComputeGCD(a, b)
 
@@ -608,8 +610,8 @@ object ArithExpr {
         return Some(true)
       // Abs(a + x) < n true if (a + x) < n and -1(a + x) < n
       case (AbsFunction(Sum((a: Cst) :: (x: Var) :: Nil)), n: Var) if
-      isSmaller(SimplifySum(a :: x.range.max :: Nil), n).getOrElse(false) &&
-        isSmaller(SimplifyProd(Cst(-1) :: SimplifySum(a :: x.range.min :: Nil) :: Nil), n).getOrElse(false) =>
+        isSmaller(SimplifySum(a :: x.range.max :: Nil), n).getOrElse(false) &&
+          isSmaller(SimplifyProd(Cst(-1) :: SimplifySum(a :: x.range.min :: Nil) :: Nil), n).getOrElse(false) =>
         return Some(true)
       case (Mod((_: ArithExpr), (v1: Var)), (v2: Var)) if v1 == v2 =>
         return Some(true)
@@ -689,7 +691,7 @@ object ArithExpr {
       PerformSimplification.simplify = originalSimplificationFlag
 
       //If substituting had no effect, give up now
-      return if(ae1 == substitute1 && ae2 == substitute2) {
+      return if (ae1 == substitute1 && ae2 == substitute2) {
         None
       } else {
         isSmaller(substitute1, substitute2)
@@ -806,20 +808,21 @@ object ArithExpr {
     }
   }
 
-  private def visitUntilGroup(items:Iterable[ArithExpr], f:ArithExpr => Boolean):Boolean = {
-    items.foreach(t => if(visitUntil(t, f)) return true)
+  private def visitUntilGroup(items: Iterable[ArithExpr], f: ArithExpr => Boolean): Boolean = {
+    items.foreach(t => if (visitUntil(t, f)) return true)
     false
   }
 
-  /***
+  /** *
     * Returns the set of all variables in the expression which are not locally scoped.
+    *
     * @param rootExpr
     * @return
     */
-  def freeVariables(rootExpr:ArithExpr):Set[Var] = {
+  def freeVariables(rootExpr: ArithExpr): Set[Var] = {
     //If we had a reverse-visit...I would not have to re-write a pattern matching cascade...
     //...but we don't...so sad :(
-    def fv(expr:ArithExpr):Set[Var] = {
+    def fv(expr: ArithExpr): Set[Var] = {
       expr match {
         case Pow(base, exp) => fv(base) ++ fv(exp)
         case IntDiv(numer, denom) => fv(numer) ++ fv(denom)
@@ -834,9 +837,9 @@ object ArithExpr {
         case lu: Lookup => fv(lu.index) ++ lu.table.map(fv).foldLeft(Set[Var]())(_ ++ _)
         case BigSum(binder, body) => fv(body) - binder
         case SteppedCase(v, cases) => cases.map(fv).foldLeft(Set[Var]())(_ ++ _) + v
-        case v:Var  => Set(v)
+        case v: Var => Set(v)
         case Cst(_) => Set()
-        case fun:ArithExprFunctionCall => fun.freeVariables
+        case fun: ArithExprFunctionCall => fun.freeVariables
         case x if x.getClass == ?.getClass => Set()
         case PosInf | NegInf => Set()
         case AbsFunction(expr) => fv(expr)
@@ -892,11 +895,11 @@ object ArithExpr {
       val lowerBound = evalDouble(idxVariable.rangeAdd.start).toInt
       val upperBound = evalDouble(idxVariable.rangeAdd.stop).toInt
 
-      def mkBody = (idxValue:ArithExpr) => ArithExpr.substitute(body, Map(idxVariable -> idxValue))
+      def mkBody = (idxValue: ArithExpr) => ArithExpr.substitute(body, Map(idxVariable -> idxValue))
 
       (lowerBound until upperBound).map(varValue => evalDouble(mkBody(varValue))).sum
 
-    case steppedCase:SteppedCase => evalDouble(steppedCase.intoIfChain())
+    case steppedCase: SteppedCase => evalDouble(steppedCase.intoIfChain())
 
     case `?` | NegInf | PosInf | _: Var | _: ArithExprFunctionCall | _: SimplifiedExpr => throw NotEvaluable
   }
@@ -945,7 +948,7 @@ object ArithExpr {
       }
     })
     (SimplifyProd(common), SimplifySum((newE1, newE2) match {
-      case (Nil, Nil) =>  throw new IllegalArgumentException(f"Could not factorize $e1factors and $e2factors")
+      case (Nil, Nil) => throw new IllegalArgumentException(f"Could not factorize $e1factors and $e2factors")
       case (_, Nil) => List(SimplifyProd(newE1))
       case (Nil, _) => List(SimplifyProd(newE2))
       case (_, _) => List(SimplifyProd(newE1), SimplifyProd(newE2))
@@ -956,69 +959,70 @@ object ArithExpr {
     * Recursively converts an arithmetic expression to a Scala notation String which can be evaluated into a
     * valid ArithExpr.
     *
-    * @param ae An expression to print
+    * @param ae                  An expression to print
     * @param printNonFixedVarIds Indicates whether variables should be printed with their non-fixed IDs
     * @return Printed result
     */
   def printToScalaString(ae: ArithExpr, printNonFixedVarIds: Boolean): String = ae match {
-    case Cst(v) =>                   s"Cst($v)"
-    case IntDiv(numer, denom) =>     s"(${printToScalaString(numer, printNonFixedVarIds)}) / " +
-                                        s"(${printToScalaString(denom, printNonFixedVarIds)})"
+    case Cst(v) => s"Cst($v)"
+    case IntDiv(numer, denom) => s"(${printToScalaString(numer, printNonFixedVarIds)}) / " +
+      s"(${printToScalaString(denom, printNonFixedVarIds)})"
     case Pow(b, e) => e match {
-      case Cst(-1) =>                s"Cst(1)/^(${printToScalaString(b, printNonFixedVarIds)})"
-      case _ =>                      s"SimplifyPow(${printToScalaString(b, printNonFixedVarIds)}, " +
-                                        s"${printToScalaString(e, printNonFixedVarIds)})"
+      case Cst(-1) => s"Cst(1)/^(${printToScalaString(b, printNonFixedVarIds)})"
+      case _ => s"SimplifyPow(${printToScalaString(b, printNonFixedVarIds)}, " +
+        s"${printToScalaString(e, printNonFixedVarIds)})"
     }
-    case Log(b, x) =>                s"Log(${printToScalaString(b, printNonFixedVarIds)}, " +
-                                        s"${printToScalaString(x, printNonFixedVarIds)})"
+    case Log(b, x) => s"Log(${printToScalaString(b, printNonFixedVarIds)}, " +
+      s"${printToScalaString(x, printNonFixedVarIds)})"
     case Prod(factors) =>
-      if (factors.nonEmpty)          factors.map(printToScalaString(_, printNonFixedVarIds)).mkString(
-                                        "SimplifyProd(List(", ", ", "))")
-      else                           s"SimplifyProd(List())"
+      if (factors.nonEmpty) factors.map(printToScalaString(_, printNonFixedVarIds)).mkString(
+        "SimplifyProd(List(", ", ", "))")
+      else s"SimplifyProd(List())"
     case Sum(terms) =>
-      if (terms.nonEmpty)            terms.map(printToScalaString(_, printNonFixedVarIds)).mkString(
-                                        "SimplifySum(List(", ", ", "))")
-      else                           s"SimplifySum(List())"
-    case BigSum(variable, body) =>  s"SimplifyBigSum(BigSum(${printToScalaString(variable, printNonFixedVarIds)}, ${printToScalaString(body, printNonFixedVarIds)}))"
-    case Mod(dividend, divisor) =>   s"SimplifyMod(${printToScalaString(dividend, printNonFixedVarIds)}, " +
-                                        s"${printToScalaString(divisor, printNonFixedVarIds)})"
-    case AbsFunction(e) =>           s"SimplifyAbs(${printToScalaString(e, printNonFixedVarIds)})"
-    case FloorFunction(e) =>         s"SimplifyFloor(${printToScalaString(e, printNonFixedVarIds)})"
-    case CeilingFunction(e) =>       s"SimplifyCeiling(${printToScalaString(e, printNonFixedVarIds)})"
-    case IfThenElse(test, t, e) =>   s"SimplifyIfThenElse(${printToScalaString(test, printNonFixedVarIds)}, " +
-                                        s"${printToScalaString(t, printNonFixedVarIds)}, " +
-                                        s"${printToScalaString(e, printNonFixedVarIds)})"
+      if (terms.nonEmpty) terms.map(printToScalaString(_, printNonFixedVarIds)).mkString(
+        "SimplifySum(List(", ", ", "))")
+      else s"SimplifySum(List())"
+    case BigSum(variable, body) => s"SimplifyBigSum(BigSum(${printToScalaString(variable, printNonFixedVarIds)}, ${printToScalaString(body, printNonFixedVarIds)}))"
+    case Mod(dividend, divisor) => s"SimplifyMod(${printToScalaString(dividend, printNonFixedVarIds)}, " +
+      s"${printToScalaString(divisor, printNonFixedVarIds)})"
+    case AbsFunction(e) => s"SimplifyAbs(${printToScalaString(e, printNonFixedVarIds)})"
+    case FloorFunction(e) => s"SimplifyFloor(${printToScalaString(e, printNonFixedVarIds)})"
+    case CeilingFunction(e) => s"SimplifyCeiling(${printToScalaString(e, printNonFixedVarIds)})"
+    case IfThenElse(test, t, e) => s"SimplifyIfThenElse(${printToScalaString(test, printNonFixedVarIds)}, " +
+      s"${printToScalaString(t, printNonFixedVarIds)}, " +
+      s"${printToScalaString(e, printNonFixedVarIds)})"
     case ArithExprFunctionCall(name, range) =>
-                                      "ArithExprFunction(\"" + s"$name" + "\"" +
-                                        s", ${Range.printToScalaString(range, printNonFixedVarIds)})"
-    case BitwiseXOR(a, b) =>         s"BitwiseXOR(${printToScalaString(a, printNonFixedVarIds)}, " +
-                                        s"${printToScalaString(b, printNonFixedVarIds)})"
-    case BitwiseAND(a, b) =>         s"BitwiseAND(${printToScalaString(a, printNonFixedVarIds)}, " +
-                                        s"${printToScalaString(b, printNonFixedVarIds)})"
-    case LShift(a, b) =>             s"LShift(${printToScalaString(a, printNonFixedVarIds)}, " +
-                                        s"${printToScalaString(b, printNonFixedVarIds)})"
-    case v:InclusiveIndexVar =>      printVarToScalaString("InclusiveIndexVar", v, printNonFixedVarIds)
-    case v:NamedVar =>      printVarToScalaString("NamedVar", v, printNonFixedVarIds)
-    case v:Var =>                     printVarToScalaString("Var", v, printNonFixedVarIds)
+      "ArithExprFunction(\"" + s"$name" + "\"" +
+        s", ${Range.printToScalaString(range, printNonFixedVarIds)})"
+    case BitwiseXOR(a, b) => s"BitwiseXOR(${printToScalaString(a, printNonFixedVarIds)}, " +
+      s"${printToScalaString(b, printNonFixedVarIds)})"
+    case BitwiseAND(a, b) => s"BitwiseAND(${printToScalaString(a, printNonFixedVarIds)}, " +
+      s"${printToScalaString(b, printNonFixedVarIds)})"
+    case LShift(a, b) => s"LShift(${printToScalaString(a, printNonFixedVarIds)}, " +
+      s"${printToScalaString(b, printNonFixedVarIds)})"
+    case v: InclusiveIndexVar => printVarToScalaString("InclusiveIndexVar", v, printNonFixedVarIds)
+    case v: NamedVar => printVarToScalaString("NamedVar", v, printNonFixedVarIds)
+    case v: Var => printVarToScalaString("Var", v, printNonFixedVarIds)
 
     case e =>
       throw new NotImplementedError(
         s"Arithmetic expression $e is not supported in printing ArithExpr to Scala notation String")
   }
 
-  private def printVarToScalaString(varTypeName:String, v:Var, printNonFixedVarIds:Boolean) = {
+  private def printVarToScalaString(varTypeName: String, v: Var, printNonFixedVarIds: Boolean) = {
     varTypeName + "(\"" + s"${v.name}" + "\"" +
       s", ${Range.printToScalaString(v.range, printNonFixedVarIds)}, " +
       (if (printNonFixedVarIds) s"Some(${v.id})" else v.fixedId match {
         case Some(fixedId) => s"Some($fixedId)"
-        case None => "None"}) + ")"
+        case None => "None"
+      }) + ")"
   }
 
-  def printToScalaString(pred:BoolExpr, printNonFixedVarIDs:Boolean):String = pred match {
+  def printToScalaString(pred: BoolExpr, printNonFixedVarIDs: Boolean): String = pred match {
     case BoolExpr.True => "BoolExpr.True"
     case BoolExpr.False => "BoolExpr.False"
     case BoolExpr.ArithPredicate(lhs, rhs, op) =>
-      s"ArithPredicate(${printToScalaString(lhs,printNonFixedVarIDs)}, " +
+      s"ArithPredicate(${printToScalaString(lhs, printNonFixedVarIDs)}, " +
         s"${printToScalaString(rhs, printNonFixedVarIDs)}, " +
         s"ArithExpr.Operator.${ArithPredicate.Operator.symbolString(op)})"
   }
@@ -1185,9 +1189,10 @@ case class Pow private[arithmetic](b: ArithExpr with SimplifiedExpr, e: ArithExp
   override lazy val digest: Int = HashSeed ^ b.digest() ^ e.digest()
 
   lazy val asProd: Option[List[ArithExpr with SimplifiedExpr]] = (b, e) match {
-    /**  (a * b * c)^e  :  a^e * b^e * c^e  **/
+    /** (a * b * c)^e  :  a^e * b^e * c^e  * */
     case (Prod(factors), _) => Some(factors.map(SimplifyPow(_, e)))
-    /**  b^(a + c + d)  :  b^a * b^c * b^d  **/
+
+    /** b^(a + c + d)  :  b^a * b^c * b^d  * */
     case (b, Sum(exps)) => Some(exps.map(SimplifyPow(b, _)))
     case (_, _) => None
   }
@@ -1262,7 +1267,7 @@ case class Prod private[arithmetic](factors: List[ArithExpr with SimplifiedExpr]
   override lazy val digest: Int = factors.foldRight(HashSeed)((x, hash) => hash ^ x.digest())
 
   override def equals(that: Any): Boolean = that match {
-    case Prod(factors2)=> factors.length == factors2.length && factors.intersect(factors2).length == factors.length
+    case Prod(factors2) => factors.length == factors2.length && factors.intersect(factors2).length == factors.length
     case _ => false
   }
 
@@ -1279,12 +1284,12 @@ case class Prod private[arithmetic](factors: List[ArithExpr with SimplifiedExpr]
     * Removing factors does not create new optimization opportunity, therefore the resulting prod is still simplified.
     */
   def withoutFactors(list: List[ArithExpr]): ArithExpr = {
-//    assert(simplified, "This function only works on simplified products")
+    //    assert(simplified, "This function only works on simplified products")
     val rest: List[ArithExpr] = Prod.removeFactors(factors, list)
     // If there is only one left, return it
     if (rest.length == 1) rest.head
     // Otherwise create a new product, which is also simplified by construction
-    else new Prod(rest)// with SimplifiedExpr
+    else new Prod(rest) // with SimplifiedExpr
   }
 
   def withoutFactor(factor: ArithExpr): ArithExpr = withoutFactors(List(factor))
@@ -1311,7 +1316,7 @@ case class Prod private[arithmetic](factors: List[ArithExpr with SimplifiedExpr]
   // a^n * b^n : (a * b)^n
   lazy val asPowOfProd: Option[Pow] = {
     // Collect
-    val prodFactorsAsPowers = Some(factors.map{
+    val prodFactorsAsPowers = Some(factors.map {
       case Pow(b, e) => Some((b, e))
       case _ => None
     })
@@ -1339,10 +1344,10 @@ object Prod {
       case p: Pow if p.asProd.isDefined => p.asProd
 
       // An ArithExpr that can be represented as Pow that can be represented as Prod
-      /**  (a * b * c)^e  :  a^e * b^e * c^e  **/
+      /** (a * b * c)^e  :  a^e * b^e * c^e  * */
       case Pow(Prod(factors), e) => Some(factors.map(SimplifyPow(_, e)))
 
-      /**  b^(a + c + d)  :  b^a * b^c * b^d  **/
+      /** b^(a + c + d)  :  b^a * b^c * b^d  * */
       case Pow(b, Sum(exps)) => Some(exps.map(SimplifyPow(b, _)))
 
       // (x*a + x*b + x*c)  :  x*(a + b + c)
@@ -1583,7 +1588,7 @@ object ceil {
 }
 
 /* Conditional operator. Behaves like the `?:` operator in C. */
-case class IfThenElse (test: BoolExpr, t: ArithExpr with SimplifiedExpr, e: ArithExpr with SimplifiedExpr) extends ArithExpr with SimplifiedExpr {
+case class IfThenElse(test: BoolExpr, t: ArithExpr with SimplifiedExpr, e: ArithExpr with SimplifiedExpr) extends ArithExpr with SimplifiedExpr {
   override val HashSeed = 0x32c3d095
 
   override lazy val digest: Int = HashSeed ^ test.digest ^ t.digest() ^ ~e.digest()
@@ -1591,7 +1596,7 @@ case class IfThenElse (test: BoolExpr, t: ArithExpr with SimplifiedExpr, e: Arit
   override lazy val toString: String = s"( $test ? $t : $e )"
 
   override def visitAndRebuild(f: (ArithExpr) => ArithExpr): ArithExpr = {
-    f(ArithExpr.ifThenElse(test.visitAndRebuild(f:(ArithExpr) => ArithExpr), t.visitAndRebuild(f), e.visitAndRebuild(f)))
+    f(ArithExpr.ifThenElse(test.visitAndRebuild(f: (ArithExpr) => ArithExpr), t.visitAndRebuild(f), e.visitAndRebuild(f)))
   }
 
   override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] = {
@@ -1615,11 +1620,11 @@ abstract case class ArithExprFunctionCall(name: String, range: Range = RangeUnkn
 
   override lazy val toString: String = s"$name($range)"
 
-  def freeVariables:Set[Var] = Set()
+  def freeVariables: Set[Var] = Set()
 
-  def exposedArgs:Seq[ArithExpr]
+  def exposedArgs: Seq[ArithExpr]
 
-  def substituteExposedArgs(subMap:Map[ArithExpr, SimplifiedExpr]):ArithExprFunctionCall
+  def substituteExposedArgs(subMap: Map[ArithExpr, SimplifiedExpr]): ArithExprFunctionCall
 }
 
 object ArithExprFunctionCall {
@@ -1655,12 +1660,13 @@ class Lookup private[arithmetic](val table: Seq[ArithExpr with SimplifiedExpr],
 
   /**
     * Arguments expressions which are exposed to the arith expr system
+    *
     * @return
     */
   override def exposedArgs: Seq[ArithExpr] = table :+ index
 
   override def substituteExposedArgs(subMap: Map[ArithExpr, SimplifiedExpr]): ArithExprFunctionCall = {
-    def sub(x:SimplifiedExpr):SimplifiedExpr = subMap.getOrElse(x, x)
+    def sub(x: SimplifiedExpr): SimplifiedExpr = subMap.getOrElse(x, x)
 
     new Lookup(table.map(sub), sub(index), id)
   }
@@ -1795,12 +1801,12 @@ class Var private[arithmetic](val name: String,
 object Var {
   private val cnt = new AtomicLong(-1) /* Instance counter */
 
-  def incCnt() : Long = {
+  def incCnt(): Long = {
     var _id: Long = 0
     do {
       _id = Var.cnt.incrementAndGet()
       if (_id < 0)
-       Var.cnt.compareAndSet(_id, 0)
+        Var.cnt.compareAndSet(_id, 0)
     } while (_id < 0)
     _id
   }
@@ -1816,7 +1822,7 @@ object Var {
   def unapply(v: Var): Option[(String, Range)] = Some((v.name, v.range))
 }
 
-class NamedVar (override val name: String, override val range: Range = RangeUnknown, override val fixedId: Option[Long] = None) extends Var(name, range, fixedId) {
+class NamedVar(override val name: String, override val range: Range = RangeUnknown, val default: Option[Int] = None, override val fixedId: Option[Long] = None) extends Var(name, range, fixedId) {
   override lazy val hashCode = 8 * 79 + name.hashCode
 
   override val HashSeed = 0x54e9bd5e
@@ -1832,14 +1838,17 @@ class NamedVar (override val name: String, override val range: Range = RangeUnkn
 
   override lazy val toStringWithRange = s"$toString[${range.toString}]"
 
-  override def copy(r: Range) = new NamedVar(name, r)
+  override def copy(r: Range) = new NamedVar(name, r, default)
 
-  override def cloneSimplified() = new NamedVar(name, range) with SimplifiedExpr
+  override def cloneSimplified() = new NamedVar(name, range, default) with SimplifiedExpr
 }
 
 object NamedVar {
-  def apply(name: String): NamedVar= new NamedVar(name)
-  def apply(name: String, range: Range): NamedVar= new NamedVar(name, range)
+  def apply(name: String): NamedVar = new NamedVar(name)
+
+  def apply(name: String, range: Range): NamedVar = new NamedVar(name, range)
+
+  def apply(name: String, range: Range, default: Option[Int]): NamedVar = new NamedVar(name, range, default)
 }
 
 object PosVar {
@@ -1875,9 +1884,9 @@ abstract class ExtensibleVar(override val name: String,
   override def cloneSimplified(): Var with SimplifiedExpr
 }
 
-case class BigSum private[arithmetic](variable:InclusiveIndexVar, body:ArithExpr) extends ArithExpr {
+case class BigSum private[arithmetic](variable: InclusiveIndexVar, body: ArithExpr) extends ArithExpr {
   val from: ArithExpr = variable.from
-  val upTo:ArithExpr = variable.upTo
+  val upTo: ArithExpr = variable.upTo
 
   override def HashSeed(): Int = 270493
 
@@ -1903,26 +1912,26 @@ case class BigSum private[arithmetic](variable:InclusiveIndexVar, body:ArithExpr
 
   override def toString: String = s"Σ{${variable.name} ∈ [${variable.from},${variable.upTo}] => $body}"
 
-  def modify(newFrom:ArithExpr = this.from, newUpTo:ArithExpr = this.upTo, newBody:ArithExpr = this.body):ArithExpr = {
-    BigSum(newFrom, newUpTo, `for`=this.variable, newBody)
+  def modify(newFrom: ArithExpr = this.from, newUpTo: ArithExpr = this.upTo, newBody: ArithExpr = this.body): ArithExpr = {
+    BigSum(newFrom, newUpTo, `for` = this.variable, newBody)
   }
 }
 
 /**
   * A specialised form of NamedVar, where the Range is guaranteed to be a RangeAdd with steps of 1
   */
-case class InclusiveIndexVar(override val name:String, from:ArithExpr, upTo:ArithExpr, override val fixedId: Option[Long] = None) extends NamedVar(name, RangeAdd(from, upTo + 1, 1), fixedId) {
-  val rangeAdd:RangeAdd = this.range.asInstanceOf[RangeAdd]
+case class InclusiveIndexVar(override val name: String, from: ArithExpr, upTo: ArithExpr, override val default: Option[Int] = None, override val fixedId: Option[Long] = None) extends NamedVar(name, RangeAdd(from, upTo + 1, 1), default, fixedId) {
+  val rangeAdd: RangeAdd = this.range.asInstanceOf[RangeAdd]
 
   override def cloneSimplified(): InclusiveIndexVar with SimplifiedExpr = new InclusiveIndexVar(name, from, upTo) with SimplifiedExpr
 }
 
 object InclusiveIndexVar {
-  def apply(v:NamedVar):InclusiveIndexVar = {
+  def apply(v: NamedVar): InclusiveIndexVar = {
     v match {
-      case ok:InclusiveIndexVar => ok
+      case ok: InclusiveIndexVar => ok
       case _ => v.range match {
-        case RangeAdd(start, stop, Cst(1)) =>  InclusiveIndexVar(v.name, start, stop)
+        case RangeAdd(start, stop, Cst(1)) => InclusiveIndexVar(v.name, start, stop)
         case _ => throw new Exception(s"Invalid conversion into inclusive index var from $v")
       }
     }
@@ -1930,14 +1939,14 @@ object InclusiveIndexVar {
 }
 
 object BigSum {
-  def apply(from:ArithExpr, upTo:ArithExpr, makeBody:InclusiveIndexVar => ArithExpr):SimplifiedExpr = {
+  def apply(from: ArithExpr, upTo: ArithExpr, makeBody: InclusiveIndexVar => ArithExpr): SimplifiedExpr = {
     val freshID = Var.incCnt()
     val idxVar = InclusiveIndexVar(s"sumIdx$freshID", from, upTo) //Make sure start does not overlap stop?
     val bs = BigSum(idxVar, makeBody(idxVar))
     SimplifyBigSum(bs)
   }
 
-  def apply(from:ArithExpr, upTo:ArithExpr, `for`:Var, in:ArithExpr):ArithExpr = {
+  def apply(from: ArithExpr, upTo: ArithExpr, `for`: Var, in: ArithExpr): ArithExpr = {
     BigSum(from, upTo, makeBody = iv => ArithExpr.substitute(in, Map(`for` -> iv)))
   }
 }
@@ -1945,15 +1954,15 @@ object BigSum {
 /**
   * This class represents a specialised chain of if then else statements, whose semantics rememble
   * v match {
-  *   case 0 => cases(0)
-  *   case 1 => cases(1)
-  *   case _ => cases.last
+  * case 0 => cases(0)
+  * case 1 => cases(1)
+  * case _ => cases.last
   * }
   *
   * Big sum simplification makes use of this to implement the "if-then-else" peeling simplifications.
   * Always safe to transform this in a if-then-else chaine.
   */
-final case class SteppedCase(v:NamedVar, cases:Seq[ArithExpr]) extends ArithExpr with SimplifiedExpr {
+final case class SteppedCase(v: NamedVar, cases: Seq[ArithExpr]) extends ArithExpr with SimplifiedExpr {
   override def HashSeed(): Int = 18022019
 
   override def digest(): Int = cases.foldRight(HashSeed())((x, hash) => hash ^ x.digest())
@@ -1961,8 +1970,8 @@ final case class SteppedCase(v:NamedVar, cases:Seq[ArithExpr]) extends ArithExpr
 
   override def visitAndRebuild(f: ArithExpr => ArithExpr): ArithExpr = {
     f(v) match {
-        //We are replacing the steppedCase with a variable, that's fine
-      case variable:Var =>
+      //We are replacing the steppedCase with a variable, that's fine
+      case variable: Var =>
         SteppedCase(variable.asInstanceOf[NamedVar], cases.map(_.visitAndRebuild(f)))
       case _ =>
         //This makes no longer sense, the binder its not a variable.
@@ -1974,12 +1983,12 @@ final case class SteppedCase(v:NamedVar, cases:Seq[ArithExpr]) extends ArithExpr
   override def substitute(subs: collection.Map[ArithExpr, ArithExpr]): Option[ArithExpr] =
     ???
 
-  def intoIfChain():ArithExpr = {
+  def intoIfChain(): ArithExpr = {
     //Outermost guard
     ArithExpr.ifThenElse(v.lt(Cst(0)), Cst(0), bodyAsIf(this.cases, Cst(0)))
   }
 
-  private def bodyAsIf(itemsLeft:Seq[ArithExpr], stepIndex:ArithExpr):ArithExpr = {
+  private def bodyAsIf(itemsLeft: Seq[ArithExpr], stepIndex: ArithExpr): ArithExpr = {
     itemsLeft.headOption match {
       case None => Cst(0)
       case Some(thisCase) => ArithExpr.ifThenElse(BoolExpr.arithPredicate(this.v, stepIndex, BoolExpr.ArithPredicate.Operator.==), thisCase,
@@ -1989,6 +1998,6 @@ final case class SteppedCase(v:NamedVar, cases:Seq[ArithExpr]) extends ArithExpr
 }
 
 object SteppedCase {
-  def apply(steps:ArithExpr*)(v:NamedVar):SteppedCase = new SteppedCase(v, steps.toVector)
+  def apply(steps: ArithExpr*)(v: NamedVar): SteppedCase = new SteppedCase(v, steps.toVector)
 }
 
