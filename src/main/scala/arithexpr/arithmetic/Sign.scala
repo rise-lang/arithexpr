@@ -1,8 +1,6 @@
 package arithexpr
 package arithmetic
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException
-
 object Sign extends Enumeration {
   type Sign = Value
   val Positive, Negative, Unknown = Value
@@ -41,7 +39,7 @@ object Sign extends Enumeration {
       case LShift(a, b) => Sign.Unknown
     }
   }
-  
+
   // 0 ≤ ⌈x⌉ iff -1 < x
   private def signCeil(e: ArithExpr): Sign = {
     ArithExpr.isSmaller(Cst(-1), e) match {
@@ -114,8 +112,8 @@ object Sign extends Enumeration {
           case Sign.Negative => Sign.Negative
           case Sign.Unknown => Sign.Unknown
         }
-      case Sign.Negative => throw new NotImplementedException
-      case Sign.Unknown => throw new NotImplementedException
+      case Sign.Negative => throw new NotImplementedError()
+      case Sign.Unknown => throw new NotImplementedError()
     }
   }
 
